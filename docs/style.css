@@ -363,6 +363,53 @@ body {
   text-transform: uppercase;
 }
 
+.matrix-figure {
+  display: grid;
+  grid-template-columns: repeat(4, 42px);
+  grid-template-rows: repeat(4, 42px);
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.matrix-cell {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.matrix-cell::before {
+  color: var(--text-main);
+  content: attr(data-label);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.matrix-cell.diagonal {
+  border-color: #111;
+}
+
+.matrix-cell.decay {
+  background: rgba(245, 176, 65, 0.25);
+  border-color: rgba(245, 176, 65, 0.45);
+}
+
+.matrix-cell.empty::before {
+  color: var(--text-lighter);
+}
+
+.bridge-note {
+  border-left: 1px solid var(--border-light);
+  color: var(--text-soft);
+  font-size: 1.1rem;
+  font-weight: 300;
+  line-height: 1.75;
+  margin: 3rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .synthesis {
   margin-top: 6rem;
   padding-top: 2.5rem;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>InsideMamba: Mamba-3</title>
+  <title>InsideMamba: Mamba-3 (Trapezoidal MIMO)</title>
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
@@ -58,13 +58,19 @@
     <p>
       Mamba-3 adds a geometric degree of freedom by letting part of the state behave like a complex plane. A RoPE-style rotation changes the <em>phase</em> of the state without needing to erase its magnitude. That gives the recurrence a way to carry position-like structure through time while still using the SSM machinery for controlled decay and selection.
     </p>
+    <p>
+      In implementation terms, the model predicts a small phase update from each token, accumulates those phase updates across the sequence, and rotates paired state dimensions before they are used as the \(B\) and \(C\) directions. The recurrence still decides how much to decay and write, but now the content being written can move around a circular basis instead of sitting on a single real line. This is especially useful for long contexts because the model gets a stable way to encode relative progression without constantly refreshing the same memory slot.
+    </p>
+    <p>
+      The payoff is not that complex states magically solve retrieval. Attention is still better when the task requires directly selecting one exact old token. The payoff is softer but important: the recurrent state gains more stable long-range modes, so information can persist as structured motion rather than only as a decaying scalar trace.
+    </p>
 
     <div class="static-figure wide">
       <div class="diagram-title">
         <span>Complex state intuition</span>
         <span>decay controls radius, rotation controls phase</span>
       </div>
-      <svg width="780" height="300" viewBox="0 0 780 300" role="img" aria-label="Complex geometric state diagram">
+      <svg width="780" height="300" viewBox="0 0 780 300" aria-hidden="true" focusable="false">
         <defs>
           <marker id="phase-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
             <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
@@ -104,13 +110,16 @@
     <p>
       Mamba-3 introduces <strong>Multi-Input Multi-Output (MIMO)</strong> routing. The useful way to think about it is not "make everything dense." It is "give the recurrence a narrow mixing room." Channels enter a low-rank bottleneck, interact there, and then expand back out to the model heads.
     </p>
+    <p>
+      In the SISO version, each channel is mostly responsible for its own state trajectory. MIMO changes the contract: several channels can jointly form a small set of rank components, those components pass through the recurrence, and the output heads receive different mixtures of the result. That creates a controlled form of cross-channel communication without paying the full quadratic cost of letting every channel talk to every other channel directly.
+    </p>
 
     <div class="static-figure wide">
       <div class="diagram-title">
         <span>MIMO rank expansion</span>
         <span>mix cheaply, then route back out</span>
       </div>
-      <svg width="780" height="320" viewBox="0 0 780 320" role="img" aria-label="MIMO routing diagram">
+      <svg width="780" height="320" viewBox="0 0 780 320" aria-hidden="true" focusable="false">
         <defs>
           <marker id="mimo-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
             <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
@@ -163,6 +172,9 @@
 
     <p>
       In practice, this matters because language features rarely live in one isolated channel. A name, a tense marker, or a long-range dependency may need several channels to coordinate. MIMO gives the recurrent state a structured way to combine those signals, improving capacity while keeping the parameter and compute budget disciplined.
+    </p>
+    <p>
+      The concrete knob is the rank. A small rank keeps the model close to independent SISO dynamics; a larger rank gives the recurrence more shared pathways for features to meet. That makes MIMO less like an architectural flourish and more like a capacity dial: increase cross-channel expressivity only where the model can afford it.
     </p>
 
     <section class="synthesis">
