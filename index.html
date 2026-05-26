@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsideMamba: Mamba Evolution</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=20260526-2">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">InsideMamba</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="https://github.com/varun29-git/InsideMamba" target="_blank" class="btn-pill">Codebase</a>
+      <a href="https://arxiv.org/abs/2312.00752" target="_blank" class="btn-pill">Paper</a>
+      <div class="btn-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="hero-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+      Chronicles of State Space
+    </div>
+    
+    <h1 class="hero-title">How to process infinite context<br><em>in linear time.</em></h1>
+    
+    <p class="hero-desc">
+      Imagine trying to read a book, but you can only remember the last page. Traditional State Space Models do exactly this. They compress history blindly. The Mamba architecture changes the rules by selectively choosing what to "Remember" and what to "Forget" at every step.
+    </p>
+
+    <section class="landing-section">
+      <span class="section-kicker">What this site is</span>
+      <h2>A guided walk through the mechanics, not a paper summary.</h2>
+      <p>
+        InsideMamba follows one thread: how Mamba turns compressed recurrent memory into something selective, fast, and increasingly expressive.
+      </p>
+    </section>
+
+    <section class="landing-section">
+      <span class="section-kicker">The route</span>
+      <h2>Three generations, one question: what should memory keep?</h2>
+      <div class="journey-map">
+        <a href="mamba-1/index.html" class="journey-step">
+          <svg class="journey-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <small>Generation I</small>
+          <strong>Selective Scan</strong>
+          <span>The model learns when to freeze memory, when to overwrite it, and when to read from it.</span>
+        </a>
+        <a href="mamba-2/index.html" class="journey-step">
+          <svg class="journey-icon amber" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          <small>Generation II</small>
+          <strong>State Space Duality</strong>
+          <span>The recurrence is re-expressed as structured masked matrix multiplication over chunks.</span>
+        </a>
+        <a href="mamba-3/index.html" class="journey-step">
+          <svg class="journey-icon purple" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+            <line x1="12" y1="22" x2="12" y2="15.5"></line>
+            <polyline points="22 8.5 12 15.5 2 8.5"></polyline>
+            <polyline points="2 15.5 12 8.5 22 15.5"></polyline>
+            <line x1="12" y1="2" x2="12" y2="8.5"></line>
+          </svg>
+          <small>Generation III</small>
+          <strong>Trapezoidal MIMO</strong>
+          <span>The state update becomes more faithful to continuous dynamics and less isolated across channels.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="landing-section">
+      <span class="section-kicker">At a glance</span>
+      <h2>What changes from one generation to the next?</h2>
+      <div class="comparison-wrap">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Generation</th>
+              <th>Core idea</th>
+              <th>Fixes</th>
+              <th>Tradeoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Mamba-1</td>
+              <td>Selective state updates</td>
+              <td>LTI SSMs cannot filter tokens</td>
+              <td>Needs hardware-aware scan</td>
+            </tr>
+            <tr>
+              <td>Mamba-2</td>
+              <td>State Space Duality</td>
+              <td>Sequential recurrence underuses tensor cores</td>
+              <td>More structured chunk machinery</td>
+            </tr>
+            <tr>
+              <td>Mamba-3</td>
+              <td>Trapezoidal + MIMO state</td>
+              <td>ZOH drift and isolated channels</td>
+              <td>More moving parts in the recurrence</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsideMamba: Mamba-2 (State Space Duality)</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <link rel="stylesheet" href="../style.css?v=20260526-2">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">InsideMamba</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="../index.html" class="btn-pill">Hub</a>
+      <a href="../mamba-1/index.html" class="btn-pill">Mamba-1</a>
+      <a href="#" class="btn-pill active" style="border-color: #111; color: #111;">Mamba-2</a>
+      <a href="../mamba-3/index.html" class="btn-pill">Mamba-3</a>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="hero-badge">Generation II</div>
+    </div>
+    
+    <h1>State Space<br><em>Duality.</em></h1>
+
+    <h2>1. The Two Warring Paradigms</h2>
+    <p>
+      For years, sequence modeling was split into two camps. On one side were <strong>Recurrent Models</strong> (RNNs and SSMs). They process data linearly, updating a hidden state \(h_t\) at each step. Because they only need to look at the current state to predict the next word, they are incredibly fast during generation (inference). However, because step \(t\) relies on step \(t-1\), they are fundamentally sequential. You cannot train them in parallel, making them excruciatingly slow to scale.
+    </p>
+    <p>
+      On the other side was <strong>Attention</strong> (Transformers). Attention ignores sequence entirely; it looks at all tokens simultaneously through massive matrix multiplications. This means it trains blazing fast on GPUs. But during generation, it must constantly re-read the entire history, creating a catastrophic \(O(N^2)\) memory bottleneck.
+    </p>
+
+    <h2>2. The Duality Proof</h2>
+    <p>
+      The core breakthrough of Mamba-2 is a mathematical proof showing that these two seemingly opposite paradigms are actually the exact same thing. 
+    </p>
+    <p>
+      Standard Attention computes an output sequence by multiplying Queries and Keys with a causal attention mask \(L\):
+    </p>
+    <div class="katex-display">
+      \[ Y = (Q K^T \odot L) V \]
+    </div>
+    <p>
+      In a normal Transformer, \(L\) is just a lower-triangular matrix of ones (so tokens only look backward). But what happens if we structure \(L\) differently? The Mamba-2 authors proved that if \(L\) is constructed as a <strong>1-semiseparable matrix</strong>, the Attention equation mathematically collapses into the linear SSM recurrence.
+    </p>
+
+    <h2>3. The 1-Semiseparable Matrix</h2>
+    <p>
+      A 1-semiseparable matrix is a matrix where every element below the diagonal can be factored into a sequence of scalar multipliers. In the context of Mamba, it represents exponential state decay over distance:
+    </p>
+    <div class="katex-display">
+      \[ L_{ij} = \prod_{k=j+1}^i a_k \quad \text{for } i \ge j \]
+    </div>
+    <p>
+      If \(a_k\) is the decay parameter from the SSM, the matrix \(L\) perfectly encodes how much of token \(j\)'s information survives until time step \(i\). By multiplying \((Q K^T)\) by this specific decay matrix \(L\), we are computing an SSM—but doing so using the matrix multiplication of Attention.
+    </p>
+
+    <div class="static-figure" aria-label="A lower-triangular 1-semiseparable decay matrix">
+      <div class="matrix-figure" aria-hidden="true">
+        <div class="matrix-cell diagonal" data-label="1"></div>
+        <div class="matrix-cell empty" data-label="0"></div>
+        <div class="matrix-cell empty" data-label="0"></div>
+        <div class="matrix-cell empty" data-label="0"></div>
+        <div class="matrix-cell decay" data-label="a2"></div>
+        <div class="matrix-cell diagonal" data-label="1"></div>
+        <div class="matrix-cell empty" data-label="0"></div>
+        <div class="matrix-cell empty" data-label="0"></div>
+        <div class="matrix-cell decay" data-label="a2a3"></div>
+        <div class="matrix-cell decay" data-label="a3"></div>
+        <div class="matrix-cell diagonal" data-label="1"></div>
+        <div class="matrix-cell empty" data-label="0"></div>
+        <div class="matrix-cell decay" data-label="a2a3a4"></div>
+        <div class="matrix-cell decay" data-label="a3a4"></div>
+        <div class="matrix-cell decay" data-label="a4"></div>
+        <div class="matrix-cell diagonal" data-label="1"></div>
+      </div>
+      <div class="figure-caption">The 1-Semiseparable Decay Matrix L encoding SSM recurrence.</div>
+    </div>
+
+    <h2>4. The Hardware Masterstroke: Block Decomposition</h2>
+    <p>
+      Why is this duality so important? Because GPUs are designed to do matrix multiplication using Tensor Cores, but they are terrible at sequential loops. 
+    </p>
+    <p>
+      Armed with the duality proof, Mamba-2 uses an algorithm called <strong>State Space Duality (SSD)</strong> to compute the sequence via Block Decomposition. The sequence is sliced into chunks (e.g., blocks of 64 tokens). 
+    </p>
+    <p>
+      Inside each chunk (the diagonal blocks of the matrix), the interactions between tokens are computed entirely in parallel using Dual Attention matrix multiplication. Then, the single accumulated "boundary state" at the end of the chunk is sequentially passed to the next block (the off-diagonal blocks). 
+    </p>
+    <p>
+      This avoids materializing the massive intermediate states in GPU memory, fully unleashing the power of Tensor Cores and resulting in a 2x to 4x training speedup over Mamba-1.
+    </p>
+
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>SSD block decomposition</span>
+        <span>attention-shaped work, recurrent-shaped memory</span>
+      </div>
+      <svg width="820" height="360" viewBox="0 0 820 360" aria-hidden="true" focusable="false">
+        <defs>
+          <marker id="ssd-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#111"/>
+          </marker>
+        </defs>
+
+        <text x="52" y="34" fill="#9ca3af" font-family="monospace" font-size="12">causal sequence matrix</text>
+        <g transform="translate(52 58)">
+          <rect width="220" height="220" fill="#fff" stroke="#eaeaea"/>
+          <rect class="scan-block" x="0" y="0" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+          <rect class="scan-block delay-1" x="55" y="55" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+          <rect class="scan-block delay-2" x="110" y="110" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+          <rect class="scan-block delay-3" x="165" y="165" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+
+          <rect x="0" y="55" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="0" y="110" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="55" y="110" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="0" y="165" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="55" y="165" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="110" y="165" width="55" height="55" fill="#111" opacity="0.08"/>
+
+          <path d="M0 55 H220 M0 110 H220 M0 165 H220 M55 0 V220 M110 0 V220 M165 0 V220" stroke="#eaeaea"/>
+          <text x="110" y="252" fill="#374151" font-family="monospace" font-size="12" text-anchor="middle">1-semiseparable lower triangle</text>
+        </g>
+
+        <path d="M305 168 H398" stroke="#111" stroke-width="2" marker-end="url(#ssd-arrow)"/>
+
+        <g transform="translate(430 48)">
+          <text x="0" y="0" fill="#9ca3af" font-family="monospace" font-size="12">SSD splits the work</text>
+          <rect x="0" y="30" width="300" height="58" fill="#fff" stroke="#eaeaea" rx="10"/>
+          <text x="20" y="64" fill="#111" font-family="monospace" font-size="13">1. diagonal blocks</text>
+          <text x="190" y="64" fill="#9ca3af" font-family="monospace" font-size="12">parallel matmul</text>
+
+          <rect x="0" y="105" width="300" height="58" fill="#fff" stroke="#eaeaea" rx="10"/>
+          <text x="20" y="139" fill="#111" font-family="monospace" font-size="13">2. chunk states</text>
+          <text x="190" y="139" fill="#9ca3af" font-family="monospace" font-size="12">compact summary</text>
+
+          <rect x="0" y="180" width="300" height="58" fill="#fff" stroke="#eaeaea" rx="10"/>
+          <text x="20" y="214" fill="#111" font-family="monospace" font-size="13">3. off-diagonal flow</text>
+          <text x="190" y="214" fill="#9ca3af" font-family="monospace" font-size="12">recurrent carry</text>
+
+          <path d="M38 89 V105" stroke="#111" stroke-width="2" marker-end="url(#ssd-arrow)"/>
+          <path d="M38 164 V180" stroke="#111" stroke-width="2" marker-end="url(#ssd-arrow)"/>
+        </g>
+
+        <text x="410" y="330" fill="#374151" font-size="13" text-anchor="middle">
+          Mamba-2 keeps the linear state idea, but computes most token interactions in GPU-native rectangular blocks.
+        </text>
+      </svg>
+      <div class="figure-caption">Duality matters because it changes the shape of the computation, not just the notation.</div>
+    </div>
+
+    <p class="bridge-note">
+      Mamba-2 therefore solves a compute-shape problem: it makes selective recurrence look enough like attention to use modern accelerators well. But it still inherits a modeling question from the earlier line of SSMs: how faithful is the discrete state update itself when the sequence becomes extremely long? That is where the Mamba-3 story begins.
+    </p>
+
+  </main>
+
+</body>
+</html>

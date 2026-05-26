@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsideMamba: Mamba-1 (Selective State Spaces)</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <link rel="stylesheet" href="../style.css?v=20260526-2">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">InsideMamba</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="../index.html" class="btn-pill">Hub</a>
+      <a href="#" class="btn-pill active" style="border-color: #111; color: #111;">Mamba-1</a>
+      <a href="../mamba-2/index.html" class="btn-pill">Mamba-2</a>
+      <a href="../mamba-3/index.html" class="btn-pill">Mamba-3</a>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="hero-badge">Generation I</div>
+    </div>
+    
+    <h1>The Selective Scan<br><em>Mechanism (S6).</em></h1>
+
+    <h2>1. The Continuous Origin</h2>
+    <p>
+      Unlike Transformers, which were born from discrete sequence-to-sequence translation, State Space Models (SSMs) are rooted in continuous-time control theory. The foundation of Mamba is a simple differential equation that maps a 1-dimensional input signal \(x(t)\) to an \(N\)-dimensional latent state \(h(t)\), and then projects it to an output \(y(t)\):
+    </p>
+    <div class="katex-display">
+      \[ h'(t) = A h(t) + B x(t) \]
+      \[ y(t) = C h(t) \]
+    </div>
+    <p>
+      The matrix <strong>\(A\)</strong> is the most critical component. If initialized randomly, the model forgets past context instantly. Mamba initializes \(A\) using <strong>HiPPO (High-order Polynomial Projection Operators)</strong>. The HiPPO matrix mathematically guarantees that the state \(h(t)\) maintains an optimal compression of the entire history of the input sequence using orthogonal polynomials.
+    </p>
+
+    <h2>2. The Digital Bridge: Discretization</h2>
+    <p>
+      Language models process discrete tokens, not continuous waveforms. To bridge this gap, the continuous system is discretized using a step size <strong>\(\Delta\)</strong>. 
+    </p>
+    <p>
+      Using the Zero-Order Hold (ZOH) rule, the continuous matrices \(A\) and \(B\) are transformed into their discrete counterparts \(\bar{A}\) and \(\bar{B}\):
+    </p>
+    <div class="katex-display">
+      \[ \bar{A} = \exp(\Delta A) \]
+      \[ \bar{B} = (\Delta A)^{-1} (\exp(\Delta A) - I) \cdot \Delta B \]
+    </div>
+    <p>
+      This transforms the differential equation into a simple recurrent loop: \( h_t = \bar{A} h_{t-1} + \bar{B} x_t \).
+    </p>
+
+    <h2>3. The Flaw of LTI and the Convolutional Hack</h2>
+    <p>
+      In early SSMs (like S4), the matrices \(\bar{A}\) and \(\bar{B}\) were <strong>Linear Time-Invariant (LTI)</strong>. They were fixed numbers. Because the parameters never changed, the model could not filter information. It treated a critical keyword and a comma with the exact same weight.
+    </p>
+    <p>
+      However, LTI models had a massive advantage: because the recurrence was constant, it could be mathematically unrolled into a single <strong>Convolution</strong>. By applying a Fast Fourier Transform (FFT), the model could process the entire sequence simultaneously during training, making it as fast as a Transformer.
+    </p>
+
+    <h2>4. The S6 Breakthrough: Selection</h2>
+    <p>
+      Mamba sacrifices the FFT convolution to achieve intelligent, content-aware filtering. It makes the parameters dependent on the current input token \(x_t\):
+    </p>
+    <div class="katex-display">
+      \[ B_t = W_B x_t \quad C_t = W_C x_t \quad \Delta_t = \text{softplus}(\text{Parameter} + W_\Delta x_t) \]
+    </div>
+    <p>
+      This breaks the LTI constraint. The model can no longer use convolutions. But it gains the ability to reason.
+    </p>
+    <p>
+      <strong>The \(\Delta_t\) Forget Gate:</strong> If the model reads a useless token, the neural network outputs a tiny \(\Delta_t\). Looking back at the discretization formula, if \(\Delta \to 0\), then \(\bar{A} = \exp(0) = I\) (the Identity matrix). The state \(h_t = I h_{t-1} + 0\). The model literally freezes its memory and ignores the token. Conversely, a large \(\Delta_t\) drives \(\bar{A} \to 0\), flushing old memory to absorb new, high-priority information.
+    </p>
+
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>Token-dependent memory write</span>
+        <span>Δ controls the update size</span>
+      </div>
+      <div class="delta-diagram" aria-hidden="true">
+        <div class="token-row">
+          <span class="token muted">the</span>
+          <span class="token muted">little</span>
+          <span class="token strong">dragon</span>
+          <span class="token muted">and</span>
+          <span class="token strong amber">treasure</span>
+        </div>
+        <div class="delta-row">
+          <span>tiny Δ</span>
+          <span>tiny Δ</span>
+          <span class="large">large Δ</span>
+          <span>tiny Δ</span>
+          <span class="large amber">large Δ</span>
+        </div>
+        <div class="memory-track">
+          <span class="memory-dot quiet"></span>
+          <span class="memory-dot quiet"></span>
+          <span class="memory-dot write"></span>
+          <span class="memory-dot quiet"></span>
+          <span class="memory-dot write amber"></span>
+        </div>
+        <div class="diagram-note">Small Δ preserves memory. Large Δ writes strongly into the state.</div>
+      </div>
+      <div class="figure-caption">Selection turns recurrence into a content-aware memory write.</div>
+    </div>
+
+    <h2>5. The Hardware-Aware Parallel Scan</h2>
+    <p>
+      By breaking the LTI constraint, Mamba lost the ability to use fast FFT convolutions. If Mamba had to process a 100,000-token sequence using a standard PyTorch `for` loop, it would be unusably slow due to the <strong>Memory Wall</strong>.
+    </p>
+    <p>
+      GPUs have massive compute capabilities (Tensor Cores) but very slow memory bandwidth (HBM). Materializing the massive \(N\)-dimensional state \(h_t\) at every step and saving it to HBM takes \(O(BLDN)\) memory reads/writes. 
+    </p>
+    <p>
+      To solve this, Mamba implements a custom <strong>Hardware-Aware Fused Kernel</strong>. It loads the sequence into the GPU's ultra-fast SRAM cache, computes the entire recurrence using a Work-Efficient Parallel Prefix Scan algorithm, and only writes the final output \(y_t\) back to the slow HBM. This engineering masterstroke is what allows Mamba to train as fast as a Transformer while reasoning sequentially.
+    </p>
+
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>Parallel scan intuition</span>
+        <span>local chunks + carried state</span>
+      </div>
+      <div class="scan-diagram" aria-hidden="true">
+        <div class="chunk-row">
+          <span class="chunk active">1-64</span>
+          <span class="chunk">65-128</span>
+          <span class="chunk">129-192</span>
+          <span class="chunk">193-256</span>
+        </div>
+        <div class="state-line">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="state-labels">
+          <span>state</span>
+          <span>state</span>
+          <span>state</span>
+          <span>state</span>
+        </div>
+        <div class="diagram-note">Chunk work stays local; only compact boundary states move forward.</div>
+      </div>
+      <div class="figure-caption">The fused kernel is not decorative engineering. It is what keeps the selective recurrence from drowning in memory traffic.</div>
+    </div>
+
+  </main>
+
+</body>
+</html>

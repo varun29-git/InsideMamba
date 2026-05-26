@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsideMamba: Mamba-3 (Trapezoidal MIMO)</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <link rel="stylesheet" href="../style.css?v=20260526-2">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">InsideMamba</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="../index.html" class="btn-pill">Hub</a>
+      <a href="../mamba-1/index.html" class="btn-pill">Mamba-1</a>
+      <a href="../mamba-2/index.html" class="btn-pill">Mamba-2</a>
+      <a href="#" class="btn-pill active" style="border-color: #111; color: #111;">Mamba-3</a>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="hero-badge">Generation III</div>
+    </div>
+    
+    <h1>Beyond rectangular<br><em>boundaries.</em></h1>
+
+    <h2>1. The Compounding Error of ZOH</h2>
+    <p>
+      In Mamba-1 and Mamba-2, the continuous differential equation was discretized using Zero-Order Hold (ZOH). ZOH assumes that the input signal \(x(t)\) remains perfectly constant for the entire duration of the time step \(\Delta\). 
+    </p>
+    <p>
+      Mathematically, this introduces an integration error margin of \(O(\Delta)\). While acceptable for short sequences, when processing contexts of 1M+ tokens, this approximation error compounds. The model's internal state slowly drifts away from the true continuous representation guaranteed by the HiPPO matrix.
+    </p>
+
+    <h2>2. Trapezoidal Recurrence (Crank-Nicolson)</h2>
+    <p>
+      Mamba-3 solves this drift by upgrading the integration scheme to the <strong>Trapezoidal Rule (Crank-Nicolson method)</strong>. Instead of assuming the data is a flat stair-step, the model evaluates the state at both \(t-1\) and \(t\), essentially drawing a sloped line between the two points.
+    </p>
+    <div class="katex-display">
+      \[ h_t = \exp(\Delta_t A)h_{t-1} + \frac{\Delta_t}{2}\left(B_t x_t + \exp(\Delta_t A)B_{t-1}x_{t-1}\right) \]
+    </div>
+    <p>
+      By taking this weighted average, the approximation error drops from \(O(\Delta)\) down to \(O(\Delta^2)\). This drastically improves the model's ability to maintain high-fidelity memory over massive context windows.
+    </p>
+
+    <h2>3. Complex Geometric States (RoPE)</h2>
+    <p>
+      In earlier generations, the hidden state \(h_t\) consisted of real numbers (\(\mathbb{R}^N\)). Real exponential dynamics are excellent at one thing: controlling magnitude. A state dimension can decay slowly, decay quickly, or become unstable if the spectrum is wrong. But magnitude alone is a limited language for long context. It tells the model how much signal remains, not where that signal sits in a repeating or oscillatory pattern.
+    </p>
+    <p>
+      Mamba-3 adds a geometric degree of freedom by letting part of the state behave like a complex plane. A RoPE-style rotation changes the <em>phase</em> of the state without needing to erase its magnitude. That gives the recurrence a way to carry position-like structure through time while still using the SSM machinery for controlled decay and selection.
+    </p>
+    <p>
+      In implementation terms, the model predicts a small phase update from each token, accumulates those phase updates across the sequence, and rotates paired state dimensions before they are used as the \(B\) and \(C\) directions. The recurrence still decides how much to decay and write, but now the content being written can move around a circular basis instead of sitting on a single real line. This is especially useful for long contexts because the model gets a stable way to encode relative progression without constantly refreshing the same memory slot.
+    </p>
+    <p>
+      The payoff is not that complex states magically solve retrieval. Attention is still better when the task requires directly selecting one exact old token. The payoff is softer but important: the recurrent state gains more stable long-range modes, so information can persist as structured motion rather than only as a decaying scalar trace.
+    </p>
+
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>Complex state intuition</span>
+        <span>decay controls radius, rotation controls phase</span>
+      </div>
+      <svg width="780" height="300" viewBox="0 0 780 300" aria-hidden="true" focusable="false">
+        <defs>
+          <marker id="phase-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
+          </marker>
+        </defs>
+
+        <g transform="translate(80 55)">
+          <text x="0" y="-20" fill="#9ca3af" font-family="monospace" font-size="12">real-only state</text>
+          <line x1="0" y1="100" x2="220" y2="100" stroke="#eaeaea" stroke-width="2"/>
+          <circle cx="30" cy="100" r="12" fill="#111"/>
+          <circle cx="85" cy="100" r="9" fill="#111" opacity="0.7"/>
+          <circle cx="140" cy="100" r="6" fill="#111" opacity="0.45"/>
+          <circle cx="190" cy="100" r="4" fill="#111" opacity="0.25"/>
+          <text x="110" y="146" fill="#374151" font-size="13" text-anchor="middle">mostly shrink or grow</text>
+        </g>
+
+        <g transform="translate(430 35)">
+          <text x="0" y="0" fill="#9ca3af" font-family="monospace" font-size="12">rotating state</text>
+          <circle cx="140" cy="120" r="72" fill="none" stroke="#eaeaea" stroke-width="2"/>
+          <circle cx="140" cy="120" r="42" fill="none" stroke="#eaeaea" stroke-width="1"/>
+          <line x1="140" y1="120" x2="205" y2="88" stroke="#9b59b6" stroke-width="3" marker-end="url(#phase-arrow)"/>
+          <circle class="orbit-dot" cx="205" cy="88" r="8" fill="#9b59b6"/>
+          <text x="140" y="223" fill="#374151" font-size="13" text-anchor="middle">carry phase without constantly rewriting magnitude</text>
+        </g>
+
+        <text x="390" y="275" fill="#9ca3af" font-size="13" text-anchor="middle">
+          The point is not mysticism: complex motion lets memory move around the state space, not only fade along a line.
+        </text>
+      </svg>
+      <div class="figure-caption">Mamba-3 makes the state less like a fading scalar and more like controlled geometry.</div>
+    </div>
+
+    <h2>4. MIMO Rank Expansion</h2>
+    <p>
+      A standard Mamba block operates as a Single-Input Single-Output (SISO) system. If the model has 64 channels, it runs 64 entirely independent state spaces. The channels never share information. If you want to increase capacity and allow the channels to mix, the parameter count balloons quadratically \(O(D^2)\).
+    </p>
+    <p>
+      Mamba-3 introduces <strong>Multi-Input Multi-Output (MIMO)</strong> routing. The useful way to think about it is not "make everything dense." It is "give the recurrence a narrow mixing room." Channels enter a low-rank bottleneck, interact there, and then expand back out to the model heads.
+    </p>
+    <p>
+      In the SISO version, each channel is mostly responsible for its own state trajectory. MIMO changes the contract: several channels can jointly form a small set of rank components, those components pass through the recurrence, and the output heads receive different mixtures of the result. That creates a controlled form of cross-channel communication without paying the full quadratic cost of letting every channel talk to every other channel directly.
+    </p>
+
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>MIMO rank expansion</span>
+        <span>mix cheaply, then route back out</span>
+      </div>
+      <svg width="780" height="320" viewBox="0 0 780 320" aria-hidden="true" focusable="false">
+        <defs>
+          <marker id="mimo-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
+          </marker>
+        </defs>
+
+        <text x="92" y="40" fill="#9ca3af" font-family="monospace" font-size="12" text-anchor="middle">input channels</text>
+        <text x="390" y="40" fill="#9ca3af" font-family="monospace" font-size="12" text-anchor="middle">rank-R mixing room</text>
+        <text x="688" y="40" fill="#9ca3af" font-family="monospace" font-size="12" text-anchor="middle">output heads</text>
+
+        <g>
+          <circle cx="92" cy="84" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="126" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="168" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="210" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="252" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+        </g>
+
+        <rect x="330" y="76" width="120" height="184" fill="rgba(155, 89, 182, 0.08)" stroke="#9b59b6" stroke-width="1.5" rx="14"/>
+        <line x1="352" y1="108" x2="428" y2="108" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+        <line x1="352" y1="151" x2="428" y2="151" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+        <line x1="352" y1="194" x2="428" y2="194" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+        <line x1="352" y1="237" x2="428" y2="237" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+
+        <g stroke="#9b59b6" stroke-width="2" stroke-dasharray="8 8" fill="none" marker-end="url(#mimo-arrow)">
+          <path class="mimo-signal" d="M110 84 C190 84 230 108 330 108"/>
+          <path class="mimo-signal delay-1" d="M110 126 C190 126 230 151 330 151"/>
+          <path class="mimo-signal delay-2" d="M110 168 C190 168 230 194 330 194"/>
+          <path class="mimo-signal delay-3" d="M110 210 C190 210 230 237 330 237"/>
+          <path class="mimo-signal delay-4" d="M450 108 C545 84 585 84 670 84"/>
+          <path class="mimo-signal delay-2" d="M450 151 C545 126 585 126 670 126"/>
+          <path class="mimo-signal delay-1" d="M450 194 C545 210 585 210 670 210"/>
+          <path class="mimo-signal delay-3" d="M450 237 C545 252 585 252 670 252"/>
+        </g>
+
+        <g>
+          <circle cx="688" cy="84" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="126" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="168" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="210" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="252" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+        </g>
+
+        <text x="390" y="294" fill="#374151" font-size="13" text-anchor="middle">
+          The bottleneck gives channels a place to exchange information without paying for a fully dense recurrence.
+        </text>
+      </svg>
+      <div class="figure-caption">MIMO makes the state more expressive by mixing channels through a controlled low-rank path.</div>
+    </div>
+
+    <p>
+      In practice, this matters because language features rarely live in one isolated channel. A name, a tense marker, or a long-range dependency may need several channels to coordinate. MIMO gives the recurrent state a structured way to combine those signals, improving capacity while keeping the parameter and compute budget disciplined.
+    </p>
+    <p>
+      The concrete knob is the rank. A small rank keeps the model close to independent SISO dynamics; a larger rank gives the recurrence more shared pathways for features to meet. That makes MIMO less like an architectural flourish and more like a capacity dial: increase cross-channel expressivity only where the model can afford it.
+    </p>
+
+    <section class="synthesis">
+      <h2>So where does this leave SSMs?</h2>
+      <p>
+        The Mamba lineage is not simply "RNNs are back." It is a sequence of answers to the same pressure: Transformers are easy to parallelize but expensive to remember with, while recurrent models remember cheaply but are hard to train at scale. Mamba tries to keep the recurrent memory and recover the hardware shape.
+      </p>
+      <div class="synthesis-grid">
+        <div class="synthesis-item">
+          <strong>Mamba-1</strong>
+          <span>Proves that a recurrent state can be selective enough for language instead of being a blind compression.</span>
+        </div>
+        <div class="synthesis-item">
+          <strong>Mamba-2</strong>
+          <span>Shows that recurrence can be reorganized into matrix-friendly chunks without giving up linear-time memory.</span>
+        </div>
+        <div class="synthesis-item">
+          <strong>Mamba-3</strong>
+          <span>Pushes the state itself to become more faithful, geometric, and expressive across channels.</span>
+        </div>
+      </div>
+      <p>
+        That is the real story: not attention versus recurrence as a slogan, but a search for architectures that can decide what matters, store it compactly, and still run like they belong on modern accelerators.
+      </p>
+    </section>
+
+  </main>
+
+</body>
+</html>
