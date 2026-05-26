@@ -45,6 +45,27 @@ class Mamba3SISOConfig:
     d_conv: int = 4
     expand: int = 2
     headdim: int = 64
+    ngroups: int = 1
+    rope_fraction: float = 0.5
+    is_outproj_norm: bool = False
+    mimo_rank: int = 1
+    chunk_size: int = 64
+    tie_embeddings: bool = True
+
+
+@dataclass(frozen=True)
+class Mamba3MIMOConfig:
+    d_model: int = 256
+    n_layers: int = 6
+    d_state: int = 16
+    d_conv: int = 4
+    expand: int = 2
+    headdim: int = 64
+    ngroups: int = 1
+    rope_fraction: float = 0.5
+    is_outproj_norm: bool = False
+    mimo_rank: int = 4
+    chunk_size: int = 16
     tie_embeddings: bool = True
 
 
@@ -54,6 +75,7 @@ MODEL_CONFIGS = {
     "mamba1": Mamba1Config(),
     "mamba2": Mamba2Config(),
     "mamba3_siso": Mamba3SISOConfig(),
+    "mamba3_mimo": Mamba3MIMOConfig(),
 }
 
 
@@ -61,4 +83,5 @@ MODEL_DISPLAY_NAMES = {
     "mamba1": "Vanilla Mamba",
     "mamba2": "Mamba-2",
     "mamba3_siso": "Mamba-3 SISO",
+    "mamba3_mimo": "Mamba-3 MIMO",
 }

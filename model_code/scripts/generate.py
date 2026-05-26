@@ -40,6 +40,7 @@ def resolve_checkpoint_path(model_name: str) -> str | None:
         "mamba1": [os.path.join(MODELS_DIR, "Vanilla-Mamba", "mamba1_best.pt")],
         "mamba2": [os.path.join(MODELS_DIR, "Mamba-2", "mamba2_best.pt")],
         "mamba3_siso": [os.path.join(MODELS_DIR, "Mamba-3", "mamba3_siso_best.pt")],
+        "mamba3_mimo": [os.path.join(MODELS_DIR, "Mamba-3", "mamba3_mimo_best.pt")],
     }
 
     candidate_paths = [primary_path] + fallback_paths.get(model_name, [])
@@ -96,7 +97,7 @@ def generate_text(model, tokenizer, prompt, max_tokens=100, temperature=0.8, top
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, required=True, choices=["mamba1", "mamba2", "mamba3_siso"])
+    parser.add_argument("--model_name", type=str, required=True, choices=list(MODEL_CONFIGS.keys()))
     parser.add_argument("--step", type=int, default=5000)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top_p", type=float, default=0.9)
@@ -146,9 +147,16 @@ def main():
             d_conv=model_cfg.d_conv,
             expand=model_cfg.expand,
             headdim=model_cfg.headdim,
+            ngroups=model_cfg.ngroups,
+            rope_fraction=model_cfg.rope_fraction,
+            is_outproj_norm=model_cfg.is_outproj_norm,
+            is_mimo=args.model_name == "mamba3_mimo",
+            mimo_rank=model_cfg.mimo_rank,
+            chunk_size=model_cfg.chunk_size,
             tie_embeddings=model_cfg.tie_embeddings,
         )
-        model = module.Mamba3SISOModel(config)
+        model_cls = module.Mamba3MIMOModel if args.model_name == "mamba3_mimo" else module.Mamba3SISOModel
+        model = model_cls(config)
         
     ckpt_path = resolve_checkpoint_path(run_name)
     if ckpt_path is None:

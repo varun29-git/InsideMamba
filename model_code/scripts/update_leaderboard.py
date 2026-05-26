@@ -82,10 +82,12 @@ def update_readme():
     mamba2_log = resolve_log_path("mamba2_lr05x_warm2x_metrics.csv", "mamba2_metrics.csv")
     mamba2_tps = get_average_tps(mamba2_log)
     mamba3_tps = get_average_tps(os.path.join(LOGS_DIR, "mamba3_siso_metrics.csv"))
+    mamba3_mimo_tps = get_average_tps(os.path.join(LOGS_DIR, "mamba3_mimo_metrics.csv"))
     
     mamba1_ppl = get_best_ppl(resolve_log_path("mamba1_metrics.csv"))
     mamba2_ppl = get_best_ppl(mamba2_log)
     mamba3_ppl = get_best_ppl(os.path.join(LOGS_DIR, "mamba3_siso_metrics.csv"))
+    mamba3_mimo_ppl = get_best_ppl(os.path.join(LOGS_DIR, "mamba3_mimo_metrics.csv"))
     
     table = (
         "## Model Leaderboard\n\n"
@@ -93,7 +95,8 @@ def update_readme():
         "| :--- | :--- | :--- |\n"
         f"| Vanilla Mamba | {mamba1_tps} | {mamba1_ppl} |\n"
         f"| Mamba-2 | {mamba2_tps} | {mamba2_ppl} |\n"
-        f"| Mamba-3 SISO | {mamba3_tps} | {mamba3_ppl} |\n\n"
+        f"| Mamba-3 SISO | {mamba3_tps} | {mamba3_ppl} |\n"
+        f"| Mamba-3 MIMO | {mamba3_mimo_tps} | {mamba3_mimo_ppl} |\n\n"
     )
     
     if not os.path.exists(README_PATH):

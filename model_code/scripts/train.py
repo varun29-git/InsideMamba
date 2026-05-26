@@ -111,7 +111,7 @@ def build_lr_schedule(step: int, total_steps: int, warmup_steps: int, min_lr_rat
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, required=True, choices=["mamba1", "mamba2", "mamba3_siso"])
+    parser.add_argument("--model_name", type=str, required=True, choices=list(MODEL_CONFIGS.keys()))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--lr_scale", type=float, default=1.0)
     parser.add_argument("--warmup_multiplier", type=float, default=1.0)
@@ -172,9 +172,16 @@ def main():
             d_conv=model_cfg.d_conv,
             expand=model_cfg.expand,
             headdim=model_cfg.headdim,
+            ngroups=model_cfg.ngroups,
+            rope_fraction=model_cfg.rope_fraction,
+            is_outproj_norm=model_cfg.is_outproj_norm,
+            is_mimo=args.model_name == "mamba3_mimo",
+            mimo_rank=model_cfg.mimo_rank,
+            chunk_size=model_cfg.chunk_size,
             tie_embeddings=model_cfg.tie_embeddings,
         )
-        model = module.Mamba3SISOModel(config)
+        model_cls = module.Mamba3MIMOModel if args.model_name == "mamba3_mimo" else module.Mamba3SISOModel
+        model = model_cls(config)
         
     model = model.to(DEVICE)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
