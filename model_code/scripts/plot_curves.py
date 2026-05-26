@@ -3,9 +3,11 @@ import csv
 import tempfile
 import argparse
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOGS_DIR = os.path.join(REPO_ROOT, "logs")
-RESULTS_DIR = os.path.join(REPO_ROOT, "results")
+CODE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(CODE_ROOT)
+DATA_ROOT = os.path.join(PROJECT_ROOT, "everything_else")
+LOGS_DIR = os.path.join(DATA_ROOT, "logs")
+RESULTS_DIR = os.path.join(DATA_ROOT, "results")
 TEMP_CACHE_ROOT = os.path.join(tempfile.gettempdir(), "mambareview-cache")
 MPLCONFIGDIR = os.path.join(TEMP_CACHE_ROOT, "matplotlib")
 XDG_CACHE_HOME = os.path.join(TEMP_CACHE_ROOT, "xdg")

@@ -36,13 +36,13 @@ This learning journey is guided by the following foundational papers on Mamba an
 
 This repository uses a custom Byte-Pair Encoding (BPE) tokenizer trained specifically on the `roneneldan/TinyStories` dataset. 
 
-In order to maximize parameter efficiency for these small-scale research models, we deliberately restrict the vocabulary size to **4,096 tokens**. By shrinking the embedding matrix, the parameter budget is freed up to focus on the core Mamba architecture blocks. You can generate the tokenizer by running `python3 scripts/train_tokenizer.py`.
+In order to maximize parameter efficiency for these small-scale research models, we deliberately restrict the vocabulary size to **4,096 tokens**. By shrinking the embedding matrix, the parameter budget is freed up to focus on the core Mamba architecture blocks. You can generate the tokenizer by running `python3 model_code/scripts/train_tokenizer.py`.
 
 ## Experiment Note
 
 The next comparison run should be treated as the main apples-to-apples benchmark. The earlier `Mamba-1` vs `Mamba-2` numbers were collected from mismatched model sizes, which made the chart more misleading than useful. The current training scripts now keep per-model configs so `Mamba-2` can be retrained at a closer parameter budget to the `Mamba-1` baseline.
 
-Useful experiment controls now available in `scripts/train.py`:
+Useful experiment controls now available in `model_code/scripts/train.py`:
 
 - `--lr_scale` for small learning-rate sweeps
 - `--warmup_multiplier` for longer or shorter warmup
@@ -63,3 +63,4 @@ The plotting script now generates:
 | Vanilla Mamba | 2149 | 10.57 |
 | Mamba-2 | 61288 | 17.67 |
 | Mamba-3 SISO | N/A | N/A |
+

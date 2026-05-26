@@ -13,12 +13,12 @@ This directory contains the foundational, pure PyTorch implementation of the ori
 The model is configured to train on a streamed slice of the `roneneldan/TinyStories` dataset. 
 To start a training run and generate the throughput logs:
 ```bash
-python3 scripts/train.py --model_name mamba1
+python3 model_code/scripts/train.py --model_name mamba1
 ```
 
 ### Generation
-The training script automatically produces a checkpoint (`checkpoints/mamba1_best.pt`) and outputs zero-shot greedy completions during the evaluation loop. You can also evaluate it against Mamba-2 using the shared scripts under `scripts/`.
+The training script automatically produces a checkpoint (`everything_else/checkpoints/mamba1_best.pt`) and outputs zero-shot greedy completions during the evaluation loop. You can also evaluate it against Mamba-2 using the shared scripts under `model_code/scripts/`.
 
 ## Core Files
 * `model.py`: The raw PyTorch implementation of the S6 architecture and `MambaBlock`.
-* `scripts/train.py`: The shared training loop with integrated token-per-second (TPS) and VRAM tracking.
+* `model_code/scripts/train.py`: The shared training loop with integrated token-per-second (TPS) and VRAM tracking.

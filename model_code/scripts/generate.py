@@ -6,11 +6,13 @@ from tokenizers import Tokenizer
 import importlib.util
 from model_configs import MODEL_CONFIGS, TRAIN_CONFIG
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODELS_DIR = os.path.join(REPO_ROOT, "models")
-CHECKPOINTS_DIR = os.path.join(REPO_ROOT, "checkpoints")
-SAMPLES_DIR = os.path.join(REPO_ROOT, "samples")
-TOKENIZER_PATH = os.path.join(REPO_ROOT, "tokenizer_4k.json")
+CODE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(CODE_ROOT)
+DATA_ROOT = os.path.join(PROJECT_ROOT, "everything_else")
+MODELS_DIR = os.path.join(CODE_ROOT, "models")
+CHECKPOINTS_DIR = os.path.join(DATA_ROOT, "checkpoints")
+SAMPLES_DIR = os.path.join(DATA_ROOT, "samples")
+TOKENIZER_PATH = os.path.join(DATA_ROOT, "tokenizer_4k.json")
 
 BOS_ID = 2
 EOS_ID = 3

@@ -2,9 +2,11 @@ import os
 import csv
 import re
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOGS_DIR = os.path.join(REPO_ROOT, "logs")
-README_PATH = os.path.join(REPO_ROOT, "README.md")
+CODE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(CODE_ROOT)
+DATA_ROOT = os.path.join(PROJECT_ROOT, "everything_else")
+LOGS_DIR = os.path.join(DATA_ROOT, "logs")
+README_PATH = os.path.join(DATA_ROOT, "README.md")
 
 
 def resolve_log_path(*candidates):
