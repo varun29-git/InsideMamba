@@ -166,6 +166,7 @@ body {
   font-size: 1.05rem;
   font-weight: 300;
   line-height: 1.75;
+  max-width: 760px;
 }
 
 .section-kicker {
@@ -178,56 +179,45 @@ body {
   margin-bottom: 1rem;
 }
 
-.thesis-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.thesis-card {
-  border-top: 1px solid var(--border-light);
-  padding-top: 1.25rem;
-}
-
-.thesis-card strong {
-  display: block;
-  color: var(--text-main);
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 0.65rem;
-}
-
-.thesis-card span {
-  color: var(--text-soft);
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 300;
-  line-height: 1.65;
-}
-
 .journey-map {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
+  gap: 1.6rem;
   margin-top: 2.5rem;
-  border: 1px solid var(--border-light);
-  background: var(--border-light);
 }
 
 .journey-step {
   display: flex;
   flex-direction: column;
   min-height: 230px;
-  padding: 1.5rem;
+  padding: 2rem;
   background: var(--bg-pure);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
   color: var(--text-main);
   text-decoration: none;
-  transition: background 0.2s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
 .journey-step:hover {
-  background: #fafafa;
+  border-color: var(--text-lighter);
+  transform: translateY(-2px);
+}
+
+.journey-icon {
+  color: var(--text-main);
+  height: 28px;
+  margin-bottom: 1.6rem;
+  stroke-width: 1.5;
+  width: 28px;
+}
+
+.journey-icon.amber {
+  color: var(--accent-amber);
+}
+
+.journey-icon.purple {
+  color: var(--accent-purple);
 }
 
 .journey-step small {
@@ -239,7 +229,7 @@ body {
 }
 
 .journey-step strong {
-  margin-top: 1.4rem;
+  margin-top: 1.2rem;
   font-size: 1.25rem;
   font-weight: 400;
   letter-spacing: -0.03em;
@@ -261,6 +251,52 @@ body {
   font-family: var(--font-mono);
   font-size: 0.95rem;
   line-height: 1.8;
+}
+
+.comparison-wrap {
+  border: 1px solid var(--border-light);
+  margin-top: 2rem;
+  overflow-x: auto;
+}
+
+.comparison-table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.comparison-table th,
+.comparison-table td {
+  border-bottom: 1px solid var(--border-light);
+  padding: 1.15rem 1.25rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.comparison-table th {
+  color: var(--text-lighter);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.comparison-table td {
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-weight: 300;
+  line-height: 1.55;
+}
+
+.comparison-table td:first-child {
+  color: var(--text-main);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.comparison-table tr:last-child td {
+  border-bottom: 0;
 }
 
 /* ARTICLE LAYOUT */
@@ -521,7 +557,6 @@ body {
     margin-bottom: 3rem;
   }
 
-  .thesis-grid,
   .journey-map,
   .synthesis-grid {
     grid-template-columns: 1fr;
