@@ -1,5 +1,49 @@
 # AETHER Mamba Project
 
+**Mamba** is a family of State‑Space Models that blend recurrent dynamics with attention‑style parallelism, offering infinite‑context inference and fast GPU training.
+
+### Repository Purpose
+This repo provides **complete, from‑scratch implementations** of all three Mamba generations (Mamba‑1, Mamba‑2, Mamba‑3) and a lightweight static website that gives a short, intuitive overview of each model.
+
+### Code Overview
+- **`mamba-1/`** – Selective Scan (S6) with input‑dependent parameters, HiPPO‑initialized matrices, and a fused GPU scan kernel.
+- **`mamba-2/`** – State‑Space Duality implementation, using a 1‑semi‑separable attention mask and chunked parallel SSD.
+- **`mamba-3/`** – Trapezoidal (Crank‑Nicolson) integration, complex‑valued RoPE rotations, and MIMO low‑rank bottleneck routing.
+
+Each folder contains a `model.py` with a minimal demo (`if __name__ == "__main__":`) that runs a quick forward pass and prints tensor shapes.
+
+### Quick Start
+```bash
+# Clone the repository
+git clone https://github.com/<your‑username>/MambaReview.git
+cd MambaReview
+
+# Install dependencies (example)
+pip install -r requirements.txt
+
+# Run a sanity‑check for each variant
+python -m mamba-1.model
+python -m mamba-2.model
+python -m mamba-3.model
+```
+
+### Pedagogical Site
+A concise site that explains the three generations can be viewed at:
+
+> https://<your‑github‑username>.github.io/<repo>/
+
+The site contains a single‑line purpose statement and three long‑form articles that mirror the code implementations.
+
+### Author
+Created by **Varun** (GitHub: `varundaiya`). The visual design follows an Apple‑inspired editorial aesthetic with clean typography and subtle micro‑animations.
+
+### Acknowledgements
+Thanks to the original Mamba authors for their groundbreaking papers and to the open‑source community for the tooling that made this implementation possible.
+
+---
+
+*Happy hacking and happy learning!*
+
 ## What is Mamba?
 Mamba is a family of **State‑Space Models (SSM)** that combine the strengths of recurrent dynamics and attention‑style parallelism:
 - **Infinite‑context inference** through a tiny hidden state that can be updated step‑by‑step.
