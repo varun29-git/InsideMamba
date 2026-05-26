@@ -68,3 +68,5 @@ The plotting script now generates:
 | Vanilla Mamba | 2149 | 10.57 |
 | Mamba-2 | 61288 | 17.67 |
 | Mamba-3 SISO | N/A | N/A |
+| Mamba-3 MIMO | N/A | N/A |
+
