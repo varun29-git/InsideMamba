@@ -109,6 +109,64 @@
       This avoids materializing the massive intermediate states in GPU memory, fully unleashing the power of Tensor Cores and resulting in a 2x to 4x training speedup over Mamba-1.
     </p>
 
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>SSD block decomposition</span>
+        <span>attention-shaped work, recurrent-shaped memory</span>
+      </div>
+      <svg width="820" height="360" viewBox="0 0 820 360" role="img" aria-label="Mamba-2 block decomposition diagram">
+        <defs>
+          <marker id="ssd-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#111"/>
+          </marker>
+        </defs>
+
+        <text x="52" y="34" fill="#9ca3af" font-family="monospace" font-size="12">causal sequence matrix</text>
+        <g transform="translate(52 58)">
+          <rect width="220" height="220" fill="#fff" stroke="#eaeaea"/>
+          <rect class="scan-block" x="0" y="0" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+          <rect class="scan-block delay-1" x="55" y="55" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+          <rect class="scan-block delay-2" x="110" y="110" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+          <rect class="scan-block delay-3" x="165" y="165" width="55" height="55" fill="#f5b041" opacity="0.45"/>
+
+          <rect x="0" y="55" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="0" y="110" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="55" y="110" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="0" y="165" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="55" y="165" width="55" height="55" fill="#111" opacity="0.08"/>
+          <rect x="110" y="165" width="55" height="55" fill="#111" opacity="0.08"/>
+
+          <path d="M0 55 H220 M0 110 H220 M0 165 H220 M55 0 V220 M110 0 V220 M165 0 V220" stroke="#eaeaea"/>
+          <text x="110" y="252" fill="#374151" font-family="monospace" font-size="12" text-anchor="middle">1-semiseparable lower triangle</text>
+        </g>
+
+        <path d="M305 168 H398" stroke="#111" stroke-width="2" marker-end="url(#ssd-arrow)"/>
+
+        <g transform="translate(430 48)">
+          <text x="0" y="0" fill="#9ca3af" font-family="monospace" font-size="12">SSD splits the work</text>
+          <rect x="0" y="30" width="300" height="58" fill="#fff" stroke="#eaeaea" rx="10"/>
+          <text x="20" y="64" fill="#111" font-family="monospace" font-size="13">1. diagonal blocks</text>
+          <text x="190" y="64" fill="#9ca3af" font-family="monospace" font-size="12">parallel matmul</text>
+
+          <rect x="0" y="105" width="300" height="58" fill="#fff" stroke="#eaeaea" rx="10"/>
+          <text x="20" y="139" fill="#111" font-family="monospace" font-size="13">2. chunk states</text>
+          <text x="190" y="139" fill="#9ca3af" font-family="monospace" font-size="12">compact summary</text>
+
+          <rect x="0" y="180" width="300" height="58" fill="#fff" stroke="#eaeaea" rx="10"/>
+          <text x="20" y="214" fill="#111" font-family="monospace" font-size="13">3. off-diagonal flow</text>
+          <text x="190" y="214" fill="#9ca3af" font-family="monospace" font-size="12">recurrent carry</text>
+
+          <path d="M38 89 V105" stroke="#111" stroke-width="2" marker-end="url(#ssd-arrow)"/>
+          <path d="M38 164 V180" stroke="#111" stroke-width="2" marker-end="url(#ssd-arrow)"/>
+        </g>
+
+        <text x="410" y="330" fill="#374151" font-size="13" text-anchor="middle">
+          Mamba-2 keeps the linear state idea, but computes most token interactions in GPU-native rectangular blocks.
+        </text>
+      </svg>
+      <div class="figure-caption">Duality matters because it changes the shape of the computation, not just the notation.</div>
+    </div>
+
   </main>
 
 </body>
