@@ -86,51 +86,30 @@
         <span>Token-dependent memory write</span>
         <span>Δ controls the update size</span>
       </div>
-      <svg width="780" height="300" viewBox="0 0 780 300" aria-hidden="true" focusable="false">
-        <defs>
-          <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
-          </marker>
-          <marker id="arrow-gray" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 Z" fill="#d1d5db"/>
-          </marker>
-        </defs>
-
-        <text x="40" y="32" fill="#9ca3af" font-family="monospace" font-size="12">input tokens</text>
-        <rect x="40" y="55" width="90" height="42" fill="#fff" stroke="#eaeaea" rx="8"/>
-        <text x="85" y="82" fill="#9ca3af" font-family="monospace" font-size="13" text-anchor="middle">the</text>
-        <rect x="155" y="55" width="90" height="42" fill="#fff" stroke="#eaeaea" rx="8"/>
-        <text x="200" y="82" fill="#9ca3af" font-family="monospace" font-size="13" text-anchor="middle">little</text>
-        <rect class="scan-token delay-1" x="270" y="55" width="110" height="42" fill="#fff" stroke="#9b59b6" rx="8"/>
-        <text x="325" y="82" fill="#111" font-family="monospace" font-size="13" font-weight="700" text-anchor="middle">dragon</text>
-        <rect x="405" y="55" width="90" height="42" fill="#fff" stroke="#eaeaea" rx="8"/>
-        <text x="450" y="82" fill="#9ca3af" font-family="monospace" font-size="13" text-anchor="middle">and</text>
-        <rect class="scan-token delay-3" x="520" y="55" width="120" height="42" fill="#fff" stroke="#f5b041" rx="8"/>
-        <text x="580" y="82" fill="#111" font-family="monospace" font-size="13" font-weight="700" text-anchor="middle">treasure</text>
-
-        <text x="40" y="148" fill="#9ca3af" font-family="monospace" font-size="12">learned Δ_t</text>
-        <line x1="85" y1="100" x2="85" y2="185" stroke="#d1d5db" stroke-width="2" marker-end="url(#arrow-gray)"/>
-        <line x1="200" y1="100" x2="200" y2="185" stroke="#d1d5db" stroke-width="2" marker-end="url(#arrow-gray)"/>
-        <line x1="325" y1="100" x2="325" y2="185" stroke="#9b59b6" stroke-width="4" marker-end="url(#arrow-purple)"/>
-        <line x1="450" y1="100" x2="450" y2="185" stroke="#d1d5db" stroke-width="2" marker-end="url(#arrow-gray)"/>
-        <line x1="580" y1="100" x2="580" y2="185" stroke="#f5b041" stroke-width="4" marker-end="url(#arrow-purple)"/>
-
-        <text x="85" y="134" fill="#9ca3af" font-family="monospace" font-size="11" text-anchor="middle">tiny</text>
-        <text x="200" y="134" fill="#9ca3af" font-family="monospace" font-size="11" text-anchor="middle">tiny</text>
-        <text x="325" y="134" fill="#111" font-family="monospace" font-size="11" font-weight="700" text-anchor="middle">large</text>
-        <text x="450" y="134" fill="#9ca3af" font-family="monospace" font-size="11" text-anchor="middle">tiny</text>
-        <text x="580" y="134" fill="#111" font-family="monospace" font-size="11" font-weight="700" text-anchor="middle">large</text>
-
-        <rect x="95" y="198" width="570" height="34" fill="#111" rx="17"/>
-        <text x="380" y="220" fill="#fff" font-family="monospace" font-size="12" text-anchor="middle">compressed recurrent state h_t</text>
-        <circle cx="85" cy="215" r="9" fill="#fff" stroke="#eaeaea" stroke-width="2"/>
-        <circle cx="200" cy="215" r="9" fill="#fff" stroke="#eaeaea" stroke-width="2"/>
-        <circle class="scan-token delay-1" cx="325" cy="215" r="14" fill="#fff" stroke="#9b59b6" stroke-width="3"/>
-        <circle cx="450" cy="215" r="9" fill="#fff" stroke="#eaeaea" stroke-width="2"/>
-        <circle class="scan-token delay-3" cx="580" cy="215" r="14" fill="#fff" stroke="#f5b041" stroke-width="3"/>
-
-        <text x="40" y="270" fill="#374151" font-size="13">Small Δ: preserve the old state. Large Δ: overwrite more aggressively with the current token.</text>
-      </svg>
+      <div class="delta-diagram" aria-hidden="true">
+        <div class="token-row">
+          <span class="token muted">the</span>
+          <span class="token muted">little</span>
+          <span class="token strong">dragon</span>
+          <span class="token muted">and</span>
+          <span class="token strong amber">treasure</span>
+        </div>
+        <div class="delta-row">
+          <span>tiny Δ</span>
+          <span>tiny Δ</span>
+          <span class="large">large Δ</span>
+          <span>tiny Δ</span>
+          <span class="large amber">large Δ</span>
+        </div>
+        <div class="memory-track">
+          <span class="memory-dot quiet"></span>
+          <span class="memory-dot quiet"></span>
+          <span class="memory-dot write"></span>
+          <span class="memory-dot quiet"></span>
+          <span class="memory-dot write amber"></span>
+        </div>
+        <div class="diagram-note">Small Δ preserves memory. Large Δ writes strongly into the state.</div>
+      </div>
       <div class="figure-caption">Selection turns recurrence into a content-aware memory write.</div>
     </div>
 
@@ -150,34 +129,27 @@
         <span>Parallel scan intuition</span>
         <span>local chunks + carried state</span>
       </div>
-      <svg width="820" height="260" viewBox="0 0 820 260" aria-hidden="true" focusable="false">
-        <defs>
-          <marker id="scan-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-            <path d="M0,0 L8,4 L0,8 Z" fill="#111"/>
-          </marker>
-        </defs>
-        <text x="45" y="40" fill="#9ca3af" font-family="monospace" font-size="12">sequence is split into SRAM-sized chunks</text>
-        <g transform="translate(45 70)">
-          <rect class="scan-block" x="0" y="0" width="145" height="72" fill="#9b59b6" opacity="0.18" rx="10"/>
-          <rect class="scan-block delay-1" x="165" y="0" width="145" height="72" fill="#9b59b6" opacity="0.18" rx="10"/>
-          <rect class="scan-block delay-2" x="330" y="0" width="145" height="72" fill="#9b59b6" opacity="0.18" rx="10"/>
-          <rect class="scan-block delay-3" x="495" y="0" width="145" height="72" fill="#9b59b6" opacity="0.18" rx="10"/>
-          <text x="72" y="42" fill="#111" font-family="monospace" font-size="13" text-anchor="middle">tokens 1-64</text>
-          <text x="237" y="42" fill="#111" font-family="monospace" font-size="13" text-anchor="middle">65-128</text>
-          <text x="402" y="42" fill="#111" font-family="monospace" font-size="13" text-anchor="middle">129-192</text>
-          <text x="567" y="42" fill="#111" font-family="monospace" font-size="13" text-anchor="middle">193-256</text>
-        </g>
-        <path d="M120 170 H705" stroke="#111" stroke-width="2" marker-end="url(#scan-arrow)"/>
-        <circle cx="120" cy="170" r="9" fill="#fff" stroke="#111" stroke-width="2"/>
-        <circle cx="285" cy="170" r="9" fill="#fff" stroke="#111" stroke-width="2"/>
-        <circle cx="450" cy="170" r="9" fill="#fff" stroke="#111" stroke-width="2"/>
-        <circle cx="615" cy="170" r="9" fill="#fff" stroke="#111" stroke-width="2"/>
-        <text x="120" y="205" fill="#374151" font-family="monospace" font-size="12" text-anchor="middle">state</text>
-        <text x="285" y="205" fill="#374151" font-family="monospace" font-size="12" text-anchor="middle">state</text>
-        <text x="450" y="205" fill="#374151" font-family="monospace" font-size="12" text-anchor="middle">state</text>
-        <text x="615" y="205" fill="#374151" font-family="monospace" font-size="12" text-anchor="middle">state</text>
-        <text x="410" y="238" fill="#9ca3af" font-size="13" text-anchor="middle">The expensive token work happens inside chunks; only compact boundary states move forward.</text>
-      </svg>
+      <div class="scan-diagram" aria-hidden="true">
+        <div class="chunk-row">
+          <span class="chunk active">1-64</span>
+          <span class="chunk">65-128</span>
+          <span class="chunk">129-192</span>
+          <span class="chunk">193-256</span>
+        </div>
+        <div class="state-line">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="state-labels">
+          <span>state</span>
+          <span>state</span>
+          <span>state</span>
+          <span>state</span>
+        </div>
+        <div class="diagram-note">Chunk work stays local; only compact boundary states move forward.</div>
+      </div>
       <div class="figure-caption">The fused kernel is not decorative engineering. It is what keeps the selective recurrence from drowning in memory traffic.</div>
     </div>
 
