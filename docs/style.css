@@ -440,7 +440,7 @@ body {
 }
 
 .orbit-dot {
-  transform-origin: 320px 120px;
+  transform-origin: 570px 155px;
   animation-name: orbitState;
   animation-timing-function: linear;
 }
