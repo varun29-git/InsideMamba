@@ -1,4 +1,4 @@
-# AETHER Mamba Project
+# Mamba Review
 
 **Mamba** is a family of State‑Space Models that blend recurrent dynamics with attention‑style parallelism, offering infinite‑context inference and fast GPU training.
 
