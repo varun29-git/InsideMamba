@@ -1,4 +1,4 @@
-# AETHER Mamba Project
+# Mamba Review
 
 ## What is Mamba?
 Mamba is a family of **State‑Space Models (SSM)** that combine the strengths of recurrent dynamics and attention‑style parallelism:
