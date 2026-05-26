@@ -1,0 +1,251 @@
+/* AETHER: Pedagogical Long-Form Reading Style */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@1&display=swap');
+
+:root {
+  --bg-pure: #ffffff;
+  --text-main: #111111;
+  --text-soft: #374151;
+  --text-lighter: #9ca3af;
+  --border-light: #eaeaea;
+  
+  --accent-amber: #f5b041;
+  --accent-cyan: #00bcd4;
+  --accent-purple: #9b59b6;
+
+  /* Classic native Apple typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+  --font-serif-italic: "Playfair Display", Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-pure);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Minimalist Floating Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2.5rem 4rem;
+  background: transparent;
+  width: 100%;
+}
+
+.logo-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-main {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--text-lighter);
+  text-transform: uppercase;
+}
+
+.logo-sub {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #d1d5db;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 0.3rem;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.btn-pill {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.7rem 1.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  color: var(--text-lighter);
+  background: var(--bg-pure);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-pill:hover, .btn-pill.active {
+  border-color: var(--text-main);
+  color: var(--text-main);
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 8rem 2rem;
+  text-align: center;
+}
+
+/* Central Badge */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-lighter);
+  margin-bottom: 2rem;
+}
+
+/* Mixed Typography Title */
+.hero-title {
+  font-family: var(--font-sans);
+  font-size: 5rem;
+  font-weight: 300;
+  line-height: 1.1;
+  color: var(--text-main);
+  letter-spacing: -0.05em;
+  margin-bottom: 2rem;
+}
+
+.hero-title em {
+  font-family: var(--font-serif-italic);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-lighter);
+  letter-spacing: -0.01em;
+}
+
+/* Thin Description */
+.hero-desc {
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: var(--text-soft);
+  max-width: 800px;
+  margin: 0 auto 6rem;
+  line-height: 1.6;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.flat-card {
+  background: var(--bg-pure);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.2rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.flat-card:hover { border-color: var(--text-lighter); }
+.card-icon { width: 24px; height: 24px; stroke-width: 1.5; }
+.card-title { font-size: 1.25rem; font-weight: 300; letter-spacing: -0.02em; }
+
+/* ARTICLE LAYOUT */
+.article-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 4rem 2rem 10rem;
+}
+
+.article-container h1 {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: 4rem;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.article-container h1 em {
+  font-family: var(--font-serif-italic);
+  font-weight: 400;
+  color: var(--text-lighter);
+}
+
+.article-container h2 {
+  font-family: var(--font-sans);
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: var(--text-main);
+  margin: 5rem 0 1.5rem;
+  letter-spacing: -0.03em;
+}
+
+.article-container p {
+  font-size: 1.2rem;
+  font-weight: 300;
+  color: var(--text-soft);
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+}
+
+.article-container strong {
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.katex-display {
+  background: transparent;
+  padding: 1.5rem 0;
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.katex { font-size: 1.1em; color: var(--text-main); }
+
+/* Static Minimal Figures */
+.static-figure {
+  margin: 4rem 0;
+  padding: 3rem;
+  background: var(--bg-pure);
+  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.figure-caption {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-lighter);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}

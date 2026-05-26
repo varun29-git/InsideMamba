@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHER: Mamba-1 (Selective State Spaces)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">Mamba Selective Recurrence</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="../index.html" class="btn-pill">Hub</a>
+      <a href="#" class="btn-pill active" style="border-color: #111; color: #111;">Mamba-1</a>
+      <a href="../mamba-2/index.html" class="btn-pill">Mamba-2</a>
+      <a href="../mamba-3/index.html" class="btn-pill">Mamba-3</a>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="hero-badge">Generation I</div>
+    </div>
+    
+    <h1>The Selective Scan<br><em>Mechanism (S6).</em></h1>
+
+    <h2>1. The Continuous Origin</h2>
+    <p>
+      Unlike Transformers, which were born from discrete sequence-to-sequence translation, State Space Models (SSMs) are rooted in continuous-time control theory. The foundation of Mamba is a simple differential equation that maps a 1-dimensional input signal \(x(t)\) to an \(N\)-dimensional latent state \(h(t)\), and then projects it to an output \(y(t)\):
+    </p>
+    <div class="katex-display">
+      \[ h'(t) = A h(t) + B x(t) \]
+      \[ y(t) = C h(t) \]
+    </div>
+    <p>
+      The matrix <strong>\(A\)</strong> is the most critical component. If initialized randomly, the model forgets past context instantly. Mamba initializes \(A\) using <strong>HiPPO (High-order Polynomial Projection Operators)</strong>. The HiPPO matrix mathematically guarantees that the state \(h(t)\) maintains an optimal compression of the entire history of the input sequence using orthogonal polynomials.
+    </p>
+
+    <h2>2. The Digital Bridge: Discretization</h2>
+    <p>
+      Language models process discrete tokens, not continuous waveforms. To bridge this gap, the continuous system is discretized using a step size <strong>\(\Delta\)</strong>. 
+    </p>
+    <p>
+      Using the Zero-Order Hold (ZOH) rule, the continuous matrices \(A\) and \(B\) are transformed into their discrete counterparts \(\bar{A}\) and \(\bar{B}\):
+    </p>
+    <div class="katex-display">
+      \[ \bar{A} = \exp(\Delta A) \]
+      \[ \bar{B} = (\Delta A)^{-1} (\exp(\Delta A) - I) \cdot \Delta B \]
+    </div>
+    <p>
+      This transforms the differential equation into a simple recurrent loop: \( h_t = \bar{A} h_{t-1} + \bar{B} x_t \).
+    </p>
+
+    <h2>3. The Flaw of LTI and the Convolutional Hack</h2>
+    <p>
+      In early SSMs (like S4), the matrices \(\bar{A}\) and \(\bar{B}\) were <strong>Linear Time-Invariant (LTI)</strong>. They were fixed numbers. Because the parameters never changed, the model could not filter information. It treated a critical keyword and a comma with the exact same weight.
+    </p>
+    <p>
+      However, LTI models had a massive advantage: because the recurrence was constant, it could be mathematically unrolled into a single <strong>Convolution</strong>. By applying a Fast Fourier Transform (FFT), the model could process the entire sequence simultaneously during training, making it as fast as a Transformer.
+    </p>
+
+    <h2>4. The S6 Breakthrough: Selection</h2>
+    <p>
+      Mamba sacrifices the FFT convolution to achieve intelligent, content-aware filtering. It makes the parameters dependent on the current input token \(x_t\):
+    </p>
+    <div class="katex-display">
+      \[ B_t = W_B x_t \quad C_t = W_C x_t \quad \Delta_t = \text{softplus}(\text{Parameter} + W_\Delta x_t) \]
+    </div>
+    <p>
+      This breaks the LTI constraint. The model can no longer use convolutions. But it gains the ability to reason.
+    </p>
+    <p>
+      <strong>The \(\Delta_t\) Forget Gate:</strong> If the model reads a useless token, the neural network outputs a tiny \(\Delta_t\). Looking back at the discretization formula, if \(\Delta \to 0\), then \(\bar{A} = \exp(0) = I\) (the Identity matrix). The state \(h_t = I h_{t-1} + 0\). The model literally freezes its memory and ignores the token. Conversely, a large \(\Delta_t\) drives \(\bar{A} \to 0\), flushing old memory to absorb new, high-priority information.
+    </p>
+
+    <div class="static-figure">
+      <svg width="450" height="180" viewBox="0 0 450 180">
+        <!-- Sequence -->
+        <rect x="50" y="30" width="60" height="30" fill="var(--bg-pure)" stroke="var(--border-light)" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#9ca3af" x="80" y="50" text-anchor="middle">um</text>
+        <line x1="80" y1="60" x2="80" y2="100" stroke="#eaeaea" stroke-width="2"/>
+        <polygon fill="#eaeaea" points="75,95 85,95 80,100"/>
+        
+        <rect x="195" y="30" width="60" height="30" fill="var(--bg-pure)" stroke="var(--border-light)" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="225" y="50" text-anchor="middle" font-weight="600">CRITICAL</text>
+        <line x1="225" y1="60" x2="225" y2="100" stroke="var(--accent-purple)" stroke-width="2"/>
+        <polygon fill="var(--accent-purple)" points="220,95 230,95 225,100"/>
+
+        <rect x="340" y="30" width="60" height="30" fill="var(--bg-pure)" stroke="var(--border-light)" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#9ca3af" x="370" y="50" text-anchor="middle">the</text>
+        <line x1="370" y1="60" x2="370" y2="100" stroke="#eaeaea" stroke-width="2"/>
+        <polygon fill="#eaeaea" points="365,95 375,95 370,100"/>
+
+        <!-- Memory State Line -->
+        <line x1="20" y1="120" x2="430" y2="120" stroke="#111" stroke-width="3"/>
+        
+        <!-- Updates -->
+        <circle cx="80" cy="120" r="10" fill="#ffffff" stroke="#eaeaea" stroke-width="2"/>
+        <text font-family="-apple-system, sans-serif" font-size="10" fill="#9ca3af" x="80" y="145" text-anchor="middle">Δ ≈ 0 (Ignored)</text>
+
+        <circle cx="225" cy="120" r="12" fill="#ffffff" stroke="var(--accent-purple)" stroke-width="3"/>
+        <text font-family="-apple-system, sans-serif" font-size="10" fill="#111" font-weight="600" x="225" y="145" text-anchor="middle">Δ is large (State Flush)</text>
+
+        <circle cx="370" cy="120" r="10" fill="#ffffff" stroke="#eaeaea" stroke-width="2"/>
+        <text font-family="-apple-system, sans-serif" font-size="10" fill="#9ca3af" x="370" y="145" text-anchor="middle">Δ ≈ 0 (Ignored)</text>
+      </svg>
+      <div class="figure-caption">The Δ_t parameter acts as an intelligent forget gate.</div>
+    </div>
+
+    <h2>5. The Hardware-Aware Parallel Scan</h2>
+    <p>
+      By breaking the LTI constraint, Mamba lost the ability to use fast FFT convolutions. If Mamba had to process a 100,000-token sequence using a standard PyTorch `for` loop, it would be unusably slow due to the <strong>Memory Wall</strong>.
+    </p>
+    <p>
+      GPUs have massive compute capabilities (Tensor Cores) but very slow memory bandwidth (HBM). Materializing the massive \(N\)-dimensional state \(h_t\) at every step and saving it to HBM takes \(O(BLDN)\) memory reads/writes. 
+    </p>
+    <p>
+      To solve this, Mamba implements a custom <strong>Hardware-Aware Fused Kernel</strong>. It loads the sequence into the GPU's ultra-fast SRAM cache, computes the entire recurrence using a Work-Efficient Parallel Prefix Scan algorithm, and only writes the final output \(y_t\) back to the slow HBM. This engineering masterstroke is what allows Mamba to train as fast as a Transformer while reasoning sequentially.
+    </p>
+
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHER: Mamba-3</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">Mamba Selective Recurrence</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="../index.html" class="btn-pill">Hub</a>
+      <a href="../mamba-1/index.html" class="btn-pill">Mamba-1</a>
+      <a href="../mamba-2/index.html" class="btn-pill">Mamba-2</a>
+      <a href="#" class="btn-pill active" style="border-color: #111; color: #111;">Mamba-3</a>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="hero-badge">Generation III</div>
+    </div>
+    
+    <h1>Beyond rectangular<br><em>boundaries.</em></h1>
+
+    <h2>1. The Compounding Error of ZOH</h2>
+    <p>
+      In Mamba-1 and Mamba-2, the continuous differential equation was discretized using Zero-Order Hold (ZOH). ZOH assumes that the input signal \(x(t)\) remains perfectly constant for the entire duration of the time step \(\Delta\). 
+    </p>
+    <p>
+      Mathematically, this introduces an integration error margin of \(O(\Delta)\). While acceptable for short sequences, when processing contexts of 1M+ tokens, this approximation error compounds. The model's internal state slowly drifts away from the true continuous representation guaranteed by the HiPPO matrix.
+    </p>
+
+    <h2>2. Trapezoidal Recurrence (Crank-Nicolson)</h2>
+    <p>
+      Mamba-3 solves this drift by upgrading the integration scheme to the <strong>Trapezoidal Rule (Crank-Nicolson method)</strong>. Instead of assuming the data is a flat stair-step, the model evaluates the state at both \(t-1\) and \(t\), essentially drawing a sloped line between the two points.
+    </p>
+    <div class="katex-display">
+      \[ h_t = \exp(\Delta_t A)h_{t-1} + \frac{\Delta_t}{2}\left(B_t x_t + \exp(\Delta_t A)B_{t-1}x_{t-1}\right) \]
+    </div>
+    <p>
+      By taking this weighted average, the approximation error drops from \(O(\Delta)\) down to \(O(\Delta^2)\). This drastically improves the model's ability to maintain high-fidelity memory over massive context windows.
+    </p>
+
+    <h2>3. Complex Geometric States (RoPE)</h2>
+    <p>
+      In earlier generations, the hidden state \(h_t\) consisted of real numbers (\(\mathbb{R}^N\)). The problem with real-valued exponential matrices is that they only do two things: they scale towards zero (decay) or blow up to infinity (spectral collapse). 
+    </p>
+    <p>
+      Mamba-3 maps the latent state into the complex plane (\(\mathbb{C}^N\)). By applying a rotation matrix \(R(\theta)\) inspired by Rotary Position Embeddings (RoPE), the model can change the <em>phase</em> of the state vector without altering its <em>magnitude</em>. Like a planet in orbit, the memory state can rotate infinitely without decaying to zero or exploding, guaranteeing perfect long-term stability.
+    </p>
+
+    <h2>4. MIMO Rank Expansion</h2>
+    <p>
+      A standard Mamba block operates as a Single-Input Single-Output (SISO) system. If the model has 64 channels, it runs 64 entirely independent state spaces. The channels never share information. If you want to increase capacity and allow the channels to mix, the parameter count balloons quadratically \(O(D^2)\).
+    </p>
+    <p>
+      Mamba-3 introduces <strong>Multi-Input Multi-Output (MIMO)</strong> routing. 
+    </p>
+
+    <div class="static-figure">
+      <svg width="450" height="200" viewBox="0 0 450 200">
+        <!-- Input Channels D -->
+        <text font-family="monospace" font-size="12" fill="#9ca3af" x="50" y="30" text-anchor="middle">Input (D)</text>
+        <circle cx="50" cy="60" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <circle cx="50" cy="100" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <circle cx="50" cy="140" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <circle cx="50" cy="180" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+
+        <!-- Bottleneck R -->
+        <text font-family="monospace" font-size="12" fill="#9ca3af" x="225" y="60" text-anchor="middle">Low-Rank Bottleneck (R)</text>
+        <rect x="200" y="80" width="50" height="80" fill="rgba(155, 89, 182, 0.1)" stroke="var(--accent-purple)" stroke-width="1.5" rx="8"/>
+
+        <!-- Output Heads H -->
+        <text font-family="monospace" font-size="12" fill="#9ca3af" x="400" y="30" text-anchor="middle">Heads (H)</text>
+        <circle cx="400" cy="60" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <circle cx="400" cy="100" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <circle cx="400" cy="140" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <circle cx="400" cy="180" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+
+        <!-- Lines converging D -> R -->
+        <path d="M 65 60 L 200 100" stroke="#eaeaea" stroke-width="1.5"/>
+        <path d="M 65 100 L 200 110" stroke="#eaeaea" stroke-width="1.5"/>
+        <path d="M 65 140 L 200 130" stroke="#eaeaea" stroke-width="1.5"/>
+        <path d="M 65 180 L 200 140" stroke="#eaeaea" stroke-width="1.5"/>
+
+        <!-- Lines diverging R -> H -->
+        <path d="M 250 100 L 385 60" stroke="#eaeaea" stroke-width="1.5"/>
+        <path d="M 250 110 L 385 100" stroke="#eaeaea" stroke-width="1.5"/>
+        <path d="M 250 130 L 385 140" stroke="#eaeaea" stroke-width="1.5"/>
+        <path d="M 250 140 L 385 180" stroke="#eaeaea" stroke-width="1.5"/>
+      </svg>
+      <div class="figure-caption">MIMO architecture forcing D channels through an R-dimensional bottleneck.</div>
+    </div>
+
+    <p>
+      Instead of running independent equations, it takes all \(D\) channels and projects them into a low-dimensional bottleneck \(R\), where the data is mathematically forced to mix. It then expands this mixed data out to \(H\) heads. This allows Mamba-3 to achieve massive cross-channel interaction and representation capacity, while keeping the parameter count strictly constrained.
+    </p>
+
+  </main>
+
+</body>
+</html>

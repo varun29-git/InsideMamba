@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AETHER: Mamba-2 (State Space Duality)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="logo-block">
+      <span class="logo-main">Mamba Selective Recurrence</span>
+      <span class="logo-sub">From First Principles</span>
+    </div>
+    <div class="nav-actions">
+      <a href="../index.html" class="btn-pill">Hub</a>
+      <a href="../mamba-1/index.html" class="btn-pill">Mamba-1</a>
+      <a href="#" class="btn-pill active" style="border-color: #111; color: #111;">Mamba-2</a>
+      <a href="../mamba-3/index.html" class="btn-pill">Mamba-3</a>
+    </div>
+  </header>
+
+  <main class="article-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="hero-badge">Generation II</div>
+    </div>
+    
+    <h1>State Space<br><em>Duality.</em></h1>
+
+    <h2>1. The Two Warring Paradigms</h2>
+    <p>
+      For years, sequence modeling was split into two camps. On one side were <strong>Recurrent Models</strong> (RNNs and SSMs). They process data linearly, updating a hidden state \(h_t\) at each step. Because they only need to look at the current state to predict the next word, they are incredibly fast during generation (inference). However, because step \(t\) relies on step \(t-1\), they are fundamentally sequential. You cannot train them in parallel, making them excruciatingly slow to scale.
+    </p>
+    <p>
+      On the other side was <strong>Attention</strong> (Transformers). Attention ignores sequence entirely; it looks at all tokens simultaneously through massive matrix multiplications. This means it trains blazing fast on GPUs. But during generation, it must constantly re-read the entire history, creating a catastrophic \(O(N^2)\) memory bottleneck.
+    </p>
+
+    <h2>2. The Duality Proof</h2>
+    <p>
+      The core breakthrough of Mamba-2 is a mathematical proof showing that these two seemingly opposite paradigms are actually the exact same thing. 
+    </p>
+    <p>
+      Standard Attention computes an output sequence by multiplying Queries and Keys with a causal attention mask \(L\):
+    </p>
+    <div class="katex-display">
+      \[ Y = (Q K^T \odot L) V \]
+    </div>
+    <p>
+      In a normal Transformer, \(L\) is just a lower-triangular matrix of ones (so tokens only look backward). But what happens if we structure \(L\) differently? The Mamba-2 authors proved that if \(L\) is constructed as a <strong>1-semiseparable matrix</strong>, the Attention equation mathematically collapses into the linear SSM recurrence.
+    </p>
+
+    <h2>3. The 1-Semiseparable Matrix</h2>
+    <p>
+      A 1-semiseparable matrix is a matrix where every element below the diagonal can be factored into a sequence of scalar multipliers. In the context of Mamba, it represents exponential state decay over distance:
+    </p>
+    <div class="katex-display">
+      \[ L_{ij} = \prod_{k=j+1}^i a_k \quad \text{for } i \ge j \]
+    </div>
+    <p>
+      If \(a_k\) is the decay parameter from the SSM, the matrix \(L\) perfectly encodes how much of token \(j\)'s information survives until time step \(i\). By multiplying \((Q K^T)\) by this specific decay matrix \(L\), we are computing an SSM—but doing so using the matrix multiplication of Attention.
+    </p>
+
+    <div class="static-figure">
+      <svg width="400" height="200" viewBox="0 0 400 200">
+        <!-- Matrix L -->
+        <rect x="100" y="20" width="160" height="160" fill="var(--bg-pure)" stroke="var(--border-light)" stroke-width="1.5" rx="8"/>
+        
+        <!-- Diagonal -->
+        <rect x="110" y="30" width="30" height="30" fill="var(--bg-pure)" stroke="#111" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="125" y="50" text-anchor="middle">1</text>
+        <rect x="150" y="70" width="30" height="30" fill="var(--bg-pure)" stroke="#111" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="165" y="90" text-anchor="middle">1</text>
+        <rect x="190" y="110" width="30" height="30" fill="var(--bg-pure)" stroke="#111" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="205" y="130" text-anchor="middle">1</text>
+        <rect x="230" y="150" width="30" height="30" fill="var(--bg-pure)" stroke="#111" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="245" y="170" text-anchor="middle">1</text>
+
+        <!-- Lower elements -->
+        <rect x="110" y="70" width="30" height="30" fill="rgba(245, 176, 65, 0.4)" stroke="rgba(245, 176, 65, 0.6)" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="125" y="90" text-anchor="middle">a_2</text>
+
+        <rect x="110" y="110" width="30" height="30" fill="rgba(245, 176, 65, 0.2)" stroke="rgba(245, 176, 65, 0.4)" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="10" fill="#111" x="125" y="130" text-anchor="middle">a₂a₃</text>
+        <rect x="150" y="110" width="30" height="30" fill="rgba(245, 176, 65, 0.4)" stroke="rgba(245, 176, 65, 0.6)" stroke-width="1" rx="4"/>
+        <text font-family="monospace" font-size="12" fill="#111" x="165" y="130" text-anchor="middle">a_3</text>
+
+        <!-- Empty Upper Tri -->
+        <text font-family="monospace" font-size="16" fill="#9ca3af" x="210" y="60" text-anchor="middle">0</text>
+      </svg>
+      <div class="figure-caption">The 1-Semiseparable Decay Matrix L encoding SSM recurrence.</div>
+    </div>
+
+    <h2>4. The Hardware Masterstroke: Block Decomposition</h2>
+    <p>
+      Why is this duality so important? Because GPUs are designed to do matrix multiplication using Tensor Cores, but they are terrible at sequential loops. 
+    </p>
+    <p>
+      Armed with the duality proof, Mamba-2 uses an algorithm called <strong>State Space Duality (SSD)</strong> to compute the sequence via Block Decomposition. The sequence is sliced into chunks (e.g., blocks of 64 tokens). 
+    </p>
+    <p>
+      Inside each chunk (the diagonal blocks of the matrix), the interactions between tokens are computed entirely in parallel using Dual Attention matrix multiplication. Then, the single accumulated "boundary state" at the end of the chunk is sequentially passed to the next block (the off-diagonal blocks). 
+    </p>
+    <p>
+      This avoids materializing the massive intermediate states in GPU memory, fully unleashing the power of Tensor Cores and resulting in a 2x to 4x training speedup over Mamba-1.
+    </p>
+
+  </main>
+
+</body>
+</html>
