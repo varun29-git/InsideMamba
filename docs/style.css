@@ -149,31 +149,6 @@ body {
   line-height: 1.6;
 }
 
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.flat-card {
-  background: var(--bg-pure);
-  border: 1px solid var(--border-light);
-  border-radius: 20px;
-  padding: 2.5rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 1.2rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.flat-card:hover { border-color: var(--text-lighter); }
-.card-icon { width: 24px; height: 24px; stroke-width: 1.5; }
-.card-title { font-size: 1.25rem; font-weight: 300; letter-spacing: -0.02em; }
-
 .landing-section {
   margin-top: 7rem;
   text-align: left;
@@ -499,7 +474,6 @@ body {
     margin-bottom: 3rem;
   }
 
-  .cards-grid,
   .thesis-grid,
   .journey-map,
   .synthesis-grid {
