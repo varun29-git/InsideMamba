@@ -35,6 +35,51 @@
       Imagine trying to read a book, but you can only remember the last page. Traditional State Space Models do exactly this. They compress history blindly. The Mamba architecture changes the rules by selectively choosing what to "Remember" and what to "Forget" at every step.
     </p>
 
+    <section class="landing-section">
+      <span class="section-kicker">What this site is</span>
+      <h2>A guided walk through the mechanics, not a paper summary.</h2>
+      <p>
+        InsideMamba follows the architecture as it evolves: first selection, then duality, then better continuous-time dynamics. Each generation is framed around the specific limitation it fixes, so the math has a reason to exist before it appears.
+      </p>
+
+      <div class="thesis-grid">
+        <div class="thesis-card">
+          <strong>Memory is compressed.</strong>
+          <span>An SSM does not keep every token. It keeps a state, and the quality of that state determines what survives.</span>
+        </div>
+        <div class="thesis-card">
+          <strong>Selection makes it useful.</strong>
+          <span>Mamba lets the current token choose how much to write, read, and forget instead of using one fixed recurrence.</span>
+        </div>
+        <div class="thesis-card">
+          <strong>Structure makes it fast.</strong>
+          <span>Mamba-2 shows that recurrence can be reorganized into GPU-friendly matrix blocks without abandoning linear-time state.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-section">
+      <span class="section-kicker">The route</span>
+      <h2>Three generations, one question: what should memory keep?</h2>
+      <div class="journey-map">
+        <a href="mamba-1/index.html" class="journey-step">
+          <small>Generation I</small>
+          <strong>Selective Scan</strong>
+          <span>The model learns when to freeze memory, when to overwrite it, and when to read from it.</span>
+        </a>
+        <a href="mamba-2/index.html" class="journey-step">
+          <small>Generation II</small>
+          <strong>State Space Duality</strong>
+          <span>The recurrence is re-expressed as structured masked matrix multiplication over chunks.</span>
+        </a>
+        <a href="mamba-3/index.html" class="journey-step">
+          <small>Generation III</small>
+          <strong>Trapezoidal MIMO</strong>
+          <span>The state update becomes more faithful to continuous dynamics and less isolated across channels.</span>
+        </a>
+      </div>
+    </section>
+
     <div class="cards-grid">
       <!-- Card 1 -->
       <a href="mamba-1/index.html" class="flat-card" style="color: var(--text-main);">
