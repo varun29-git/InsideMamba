@@ -53,58 +53,141 @@
 
     <h2>3. Complex Geometric States (RoPE)</h2>
     <p>
-      In earlier generations, the hidden state \(h_t\) consisted of real numbers (\(\mathbb{R}^N\)). The problem with real-valued exponential matrices is that they only do two things: they scale towards zero (decay) or blow up to infinity (spectral collapse). 
+      In earlier generations, the hidden state \(h_t\) consisted of real numbers (\(\mathbb{R}^N\)). Real exponential dynamics are excellent at one thing: controlling magnitude. A state dimension can decay slowly, decay quickly, or become unstable if the spectrum is wrong. But magnitude alone is a limited language for long context. It tells the model how much signal remains, not where that signal sits in a repeating or oscillatory pattern.
     </p>
     <p>
-      Mamba-3 maps the latent state into the complex plane (\(\mathbb{C}^N\)). By applying a rotation matrix \(R(\theta)\) inspired by Rotary Position Embeddings (RoPE), the model can change the <em>phase</em> of the state vector without altering its <em>magnitude</em>. Like a planet in orbit, the memory state can rotate infinitely without decaying to zero or exploding, guaranteeing perfect long-term stability.
+      Mamba-3 adds a geometric degree of freedom by letting part of the state behave like a complex plane. A RoPE-style rotation changes the <em>phase</em> of the state without needing to erase its magnitude. That gives the recurrence a way to carry position-like structure through time while still using the SSM machinery for controlled decay and selection.
     </p>
+
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>Complex state intuition</span>
+        <span>decay controls radius, rotation controls phase</span>
+      </div>
+      <svg width="780" height="300" viewBox="0 0 780 300" role="img" aria-label="Complex geometric state diagram">
+        <defs>
+          <marker id="phase-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
+          </marker>
+        </defs>
+
+        <g transform="translate(80 55)">
+          <text x="0" y="-20" fill="#9ca3af" font-family="monospace" font-size="12">real-only state</text>
+          <line x1="0" y1="100" x2="220" y2="100" stroke="#eaeaea" stroke-width="2"/>
+          <circle cx="30" cy="100" r="12" fill="#111"/>
+          <circle cx="85" cy="100" r="9" fill="#111" opacity="0.7"/>
+          <circle cx="140" cy="100" r="6" fill="#111" opacity="0.45"/>
+          <circle cx="190" cy="100" r="4" fill="#111" opacity="0.25"/>
+          <text x="110" y="146" fill="#374151" font-size="13" text-anchor="middle">mostly shrink or grow</text>
+        </g>
+
+        <g transform="translate(430 35)">
+          <text x="0" y="0" fill="#9ca3af" font-family="monospace" font-size="12">rotating state</text>
+          <circle cx="140" cy="120" r="72" fill="none" stroke="#eaeaea" stroke-width="2"/>
+          <circle cx="140" cy="120" r="42" fill="none" stroke="#eaeaea" stroke-width="1"/>
+          <line x1="140" y1="120" x2="205" y2="88" stroke="#9b59b6" stroke-width="3" marker-end="url(#phase-arrow)"/>
+          <circle class="orbit-dot" cx="205" cy="88" r="8" fill="#9b59b6"/>
+          <text x="140" y="223" fill="#374151" font-size="13" text-anchor="middle">carry phase without constantly rewriting magnitude</text>
+        </g>
+
+        <text x="390" y="275" fill="#9ca3af" font-size="13" text-anchor="middle">
+          The point is not mysticism: complex motion lets memory move around the state space, not only fade along a line.
+        </text>
+      </svg>
+      <div class="figure-caption">Mamba-3 makes the state less like a fading scalar and more like controlled geometry.</div>
+    </div>
 
     <h2>4. MIMO Rank Expansion</h2>
     <p>
       A standard Mamba block operates as a Single-Input Single-Output (SISO) system. If the model has 64 channels, it runs 64 entirely independent state spaces. The channels never share information. If you want to increase capacity and allow the channels to mix, the parameter count balloons quadratically \(O(D^2)\).
     </p>
     <p>
-      Mamba-3 introduces <strong>Multi-Input Multi-Output (MIMO)</strong> routing. 
+      Mamba-3 introduces <strong>Multi-Input Multi-Output (MIMO)</strong> routing. The useful way to think about it is not "make everything dense." It is "give the recurrence a narrow mixing room." Channels enter a low-rank bottleneck, interact there, and then expand back out to the model heads.
     </p>
 
-    <div class="static-figure">
-      <svg width="450" height="200" viewBox="0 0 450 200">
-        <!-- Input Channels D -->
-        <text font-family="monospace" font-size="12" fill="#9ca3af" x="50" y="30" text-anchor="middle">Input (D)</text>
-        <circle cx="50" cy="60" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
-        <circle cx="50" cy="100" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
-        <circle cx="50" cy="140" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
-        <circle cx="50" cy="180" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+    <div class="static-figure wide">
+      <div class="diagram-title">
+        <span>MIMO rank expansion</span>
+        <span>mix cheaply, then route back out</span>
+      </div>
+      <svg width="780" height="320" viewBox="0 0 780 320" role="img" aria-label="MIMO routing diagram">
+        <defs>
+          <marker id="mimo-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#9b59b6"/>
+          </marker>
+        </defs>
 
-        <!-- Bottleneck R -->
-        <text font-family="monospace" font-size="12" fill="#9ca3af" x="225" y="60" text-anchor="middle">Low-Rank Bottleneck (R)</text>
-        <rect x="200" y="80" width="50" height="80" fill="rgba(155, 89, 182, 0.1)" stroke="var(--accent-purple)" stroke-width="1.5" rx="8"/>
+        <text x="92" y="40" fill="#9ca3af" font-family="monospace" font-size="12" text-anchor="middle">input channels</text>
+        <text x="390" y="40" fill="#9ca3af" font-family="monospace" font-size="12" text-anchor="middle">rank-R mixing room</text>
+        <text x="688" y="40" fill="#9ca3af" font-family="monospace" font-size="12" text-anchor="middle">output heads</text>
 
-        <!-- Output Heads H -->
-        <text font-family="monospace" font-size="12" fill="#9ca3af" x="400" y="30" text-anchor="middle">Heads (H)</text>
-        <circle cx="400" cy="60" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
-        <circle cx="400" cy="100" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
-        <circle cx="400" cy="140" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
-        <circle cx="400" cy="180" r="15" fill="var(--bg-pure)" stroke="#111" stroke-width="1.5"/>
+        <g>
+          <circle cx="92" cy="84" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="126" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="168" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="210" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="92" cy="252" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+        </g>
 
-        <!-- Lines converging D -> R -->
-        <path d="M 65 60 L 200 100" stroke="#eaeaea" stroke-width="1.5"/>
-        <path d="M 65 100 L 200 110" stroke="#eaeaea" stroke-width="1.5"/>
-        <path d="M 65 140 L 200 130" stroke="#eaeaea" stroke-width="1.5"/>
-        <path d="M 65 180 L 200 140" stroke="#eaeaea" stroke-width="1.5"/>
+        <rect x="330" y="76" width="120" height="184" fill="rgba(155, 89, 182, 0.08)" stroke="#9b59b6" stroke-width="1.5" rx="14"/>
+        <line x1="352" y1="108" x2="428" y2="108" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+        <line x1="352" y1="151" x2="428" y2="151" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+        <line x1="352" y1="194" x2="428" y2="194" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
+        <line x1="352" y1="237" x2="428" y2="237" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/>
 
-        <!-- Lines diverging R -> H -->
-        <path d="M 250 100 L 385 60" stroke="#eaeaea" stroke-width="1.5"/>
-        <path d="M 250 110 L 385 100" stroke="#eaeaea" stroke-width="1.5"/>
-        <path d="M 250 130 L 385 140" stroke="#eaeaea" stroke-width="1.5"/>
-        <path d="M 250 140 L 385 180" stroke="#eaeaea" stroke-width="1.5"/>
+        <g stroke="#9b59b6" stroke-width="2" stroke-dasharray="8 8" fill="none" marker-end="url(#mimo-arrow)">
+          <path class="mimo-signal" d="M110 84 C190 84 230 108 330 108"/>
+          <path class="mimo-signal delay-1" d="M110 126 C190 126 230 151 330 151"/>
+          <path class="mimo-signal delay-2" d="M110 168 C190 168 230 194 330 194"/>
+          <path class="mimo-signal delay-3" d="M110 210 C190 210 230 237 330 237"/>
+          <path class="mimo-signal delay-4" d="M450 108 C545 84 585 84 670 84"/>
+          <path class="mimo-signal delay-2" d="M450 151 C545 126 585 126 670 126"/>
+          <path class="mimo-signal delay-1" d="M450 194 C545 210 585 210 670 210"/>
+          <path class="mimo-signal delay-3" d="M450 237 C545 252 585 252 670 252"/>
+        </g>
+
+        <g>
+          <circle cx="688" cy="84" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="126" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="168" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="210" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+          <circle cx="688" cy="252" r="14" fill="#fff" stroke="#111" stroke-width="1.5"/>
+        </g>
+
+        <text x="390" y="294" fill="#374151" font-size="13" text-anchor="middle">
+          The bottleneck gives channels a place to exchange information without paying for a fully dense recurrence.
+        </text>
       </svg>
-      <div class="figure-caption">MIMO architecture forcing D channels through an R-dimensional bottleneck.</div>
+      <div class="figure-caption">MIMO makes the state more expressive by mixing channels through a controlled low-rank path.</div>
     </div>
 
     <p>
-      Instead of running independent equations, it takes all \(D\) channels and projects them into a low-dimensional bottleneck \(R\), where the data is mathematically forced to mix. It then expands this mixed data out to \(H\) heads. This allows Mamba-3 to achieve massive cross-channel interaction and representation capacity, while keeping the parameter count strictly constrained.
+      In practice, this matters because language features rarely live in one isolated channel. A name, a tense marker, or a long-range dependency may need several channels to coordinate. MIMO gives the recurrent state a structured way to combine those signals, improving capacity while keeping the parameter and compute budget disciplined.
     </p>
+
+    <section class="synthesis">
+      <h2>So where does this leave SSMs?</h2>
+      <p>
+        The Mamba lineage is not simply "RNNs are back." It is a sequence of answers to the same pressure: Transformers are easy to parallelize but expensive to remember with, while recurrent models remember cheaply but are hard to train at scale. Mamba tries to keep the recurrent memory and recover the hardware shape.
+      </p>
+      <div class="synthesis-grid">
+        <div class="synthesis-item">
+          <strong>Mamba-1</strong>
+          <span>Proves that a recurrent state can be selective enough for language instead of being a blind compression.</span>
+        </div>
+        <div class="synthesis-item">
+          <strong>Mamba-2</strong>
+          <span>Shows that recurrence can be reorganized into matrix-friendly chunks without giving up linear-time memory.</span>
+        </div>
+        <div class="synthesis-item">
+          <strong>Mamba-3</strong>
+          <span>Pushes the state itself to become more faithful, geometric, and expressive across channels.</span>
+        </div>
+      </div>
+      <p>
+        That is the real story: not attention versus recurrence as a slogan, but a search for architectures that can decide what matters, store it compactly, and still run like they belong on modern accelerators.
+      </p>
+    </section>
 
   </main>
 
