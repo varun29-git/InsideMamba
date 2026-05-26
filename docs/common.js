@@ -1,4 +1,4 @@
-/* AETHER: Minimalist Shared Logic - 2026 */
+/* InsideMamba: Minimalist Shared Logic - 2026 */
 
 document.addEventListener('DOMContentLoaded', () => {
   // Set active class on navbar links depending on current path

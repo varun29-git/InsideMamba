@@ -101,7 +101,7 @@ def update_readme():
     
     if not os.path.exists(README_PATH):
         with open(README_PATH, "w") as f:
-            f.write("# Mamba Review\n\n" + table)
+            f.write("# InsideMamba\n\n" + table)
         return
         
     with open(README_PATH, "r") as f:

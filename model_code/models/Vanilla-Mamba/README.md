@@ -1,6 +1,6 @@
 # Vanilla Mamba
 
-This directory contains the foundational, pure PyTorch implementation of the original **Mamba-1** architecture. It serves as the baseline for the `MambaReview` repository, designed for pedagogical clarity and raw performance benchmarking against subsequent architectural iterations.
+This directory contains the foundational, pure PyTorch implementation of the original **Mamba-1** architecture. It serves as the baseline for the `InsideMamba` repository, designed for pedagogical clarity and raw performance benchmarking against subsequent architectural iterations.
 
 ## Architecture Highlights
 * **Selective State Spaces (S6)**: The core mechanism that enables input-dependent state transitions, allowing the model to selectively remember or forget information across the sequence.

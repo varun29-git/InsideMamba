@@ -1,8 +1,8 @@
-# MambaReview
+# InsideMamba
 
 > A from-first-principles study of the Mamba family: not a wrapper around the official kernels, but a readable PyTorch reconstruction of the ideas that make selective state space models work.
 
-MambaReview is a learning and research repository for implementing Mamba-style language models from the ground up. The `docs/` site is intentionally small: it exists to explain the concepts visually and intuitively. The main artifact is the code in `model_code/`, where the architectures are written directly enough that the math can be inspected, changed, and argued with.
+InsideMamba is a learning and research repository for implementing Mamba-style language models from the ground up. The `docs/` site is intentionally small: it exists to explain the concepts visually and intuitively. The main artifact is the code in `model_code/`, where the architectures are written directly enough that the math can be inspected, changed, and argued with.
 
 The project currently implements:
 
@@ -238,7 +238,7 @@ Related directions included in the broader study path:
 
 ## Status
 
-MambaReview is under active development. The code is already useful as a study implementation and small-model training harness, but it should not be treated as a drop-in replacement for optimized Mamba libraries.
+InsideMamba is under active development. The code is already useful as a study implementation and small-model training harness, but it should not be treated as a drop-in replacement for optimized Mamba libraries.
 
 The next useful milestones are:
 
