@@ -1,4 +1,5 @@
 import math
+from copy import copy
 from dataclasses import dataclass
 
 import torch
@@ -15,12 +16,16 @@ class Mamba3Config:
     d_conv: int = 4
     expand: int = 2
     headdim: int = 64
+    ngroups: int = 1
     rope_fraction: float = 0.5
     dt_min: float = 0.001
     dt_max: float = 0.1
     dt_init_floor: float = 1e-4
     A_floor: float = 1e-4
     is_outproj_norm: bool = False
+    is_mimo: bool = False
+    mimo_rank: int = 4
+    chunk_size: int = 64
     pad_vocab_size_multiple: int = 8
     tie_embeddings: bool = True
 
@@ -56,7 +61,12 @@ class StateRMSNorm(nn.Module):
         return (x / rms) * self.weight
 
 
-def apply_rotary_pairs(x: torch.Tensor, phase: torch.Tensor, rotate_dim: int) -> torch.Tensor:
+def apply_rotary_pairs(
+    x: torch.Tensor,
+    phase: torch.Tensor,
+    rotate_dim: int,
+    rotate_pairwise: bool = True,
+) -> torch.Tensor:
     """
     Apply RoPE-style pairwise rotations to the leading slice of the state dimension.
 
@@ -68,17 +78,23 @@ def apply_rotary_pairs(x: torch.Tensor, phase: torch.Tensor, rotate_dim: int) ->
 
     x_rot = x[..., :rotate_dim]
     x_pass = x[..., rotate_dim:]
-
-    x_rot = x_rot.reshape(*x_rot.shape[:-1], rotate_dim // 2, 2)
     cos = torch.cos(phase).unsqueeze(-1)
     sin = torch.sin(phase).unsqueeze(-1)
 
-    real = x_rot[..., 0:1]
-    imag = x_rot[..., 1:2]
+    if rotate_pairwise:
+        x_rot = x_rot.reshape(*x_rot.shape[:-1], rotate_dim // 2, 2)
+        real = x_rot[..., 0:1]
+        imag = x_rot[..., 1:2]
 
-    rotated_real = real * cos - imag * sin
-    rotated_imag = real * sin + imag * cos
-    rotated = torch.cat([rotated_real, rotated_imag], dim=-1).reshape(*x.shape[:-1], rotate_dim)
+        rotated_real = real * cos - imag * sin
+        rotated_imag = real * sin + imag * cos
+        rotated = torch.cat([rotated_real, rotated_imag], dim=-1).reshape(*x.shape[:-1], rotate_dim)
+    else:
+        half = rotate_dim // 2
+        real = x_rot[..., :half]
+        imag = x_rot[..., half:]
+        rotated = torch.cat([real * cos.squeeze(-1) - imag * sin.squeeze(-1),
+                             real * sin.squeeze(-1) + imag * cos.squeeze(-1)], dim=-1)
 
     if x_pass.numel() == 0:
         return rotated
@@ -112,6 +128,9 @@ class Mamba3SISOBlock(nn.Module):
         dt_init_floor: float,
         A_floor: float,
         is_outproj_norm: bool,
+        ngroups: int = 1,
+        is_mimo: bool = False,
+        mimo_rank: int = 4,
     ):
         super().__init__()
 
@@ -123,10 +142,15 @@ class Mamba3SISOBlock(nn.Module):
         self.d_inner = d_model * expand
         self.A_floor = A_floor
         self.is_outproj_norm = is_outproj_norm
+        self.is_mimo = is_mimo
+        self.mimo_rank = mimo_rank if is_mimo else 1
+        self.num_bc_heads = ngroups
 
         if self.d_inner % headdim != 0:
             raise ValueError(f"d_inner={self.d_inner} must be divisible by headdim={headdim}")
         self.nheads = self.d_inner // headdim
+        if self.nheads % self.num_bc_heads != 0:
+            raise ValueError(f"nheads={self.nheads} must be divisible by ngroups={self.num_bc_heads}")
 
         if rope_fraction not in (0.5, 1.0):
             raise ValueError("rope_fraction must be 0.5 or 1.0 to match the official Mamba-3 setup.")
@@ -139,7 +163,12 @@ class Mamba3SISOBlock(nn.Module):
 
         # The paper version folds every token's recurrence parameters into one projection.
         # We keep the same split so the code maps cleanly to the official implementation.
-        in_proj_dim = 2 * self.d_inner + 2 * d_state + 3 * self.nheads + self.num_rope_angles
+        in_proj_dim = (
+            2 * self.d_inner
+            + 2 * d_state * self.num_bc_heads * self.mimo_rank
+            + 3 * self.nheads
+            + self.num_rope_angles
+        )
         self.in_proj = nn.Linear(d_model, in_proj_dim, bias=False)
 
         # Mamba-3 keeps a learned bias for dt and predicts the token-local offset on top.
@@ -154,8 +183,13 @@ class Mamba3SISOBlock(nn.Module):
         # B and C start from normalized shared content, then get head-specific learned offsets.
         self.B_norm = StateRMSNorm(d_state)
         self.C_norm = StateRMSNorm(d_state)
-        self.B_bias = nn.Parameter(torch.ones(self.nheads, d_state))
-        self.C_bias = nn.Parameter(torch.ones(self.nheads, d_state))
+        self.B_bias = nn.Parameter(torch.ones(self.nheads, self.mimo_rank, d_state))
+        self.C_bias = nn.Parameter(torch.ones(self.nheads, self.mimo_rank, d_state))
+
+        if self.is_mimo:
+            self.mimo_x = nn.Parameter(torch.ones(self.nheads, self.mimo_rank, self.headdim) / self.mimo_rank)
+            self.mimo_z = nn.Parameter(torch.ones(self.nheads, self.mimo_rank, self.headdim))
+            self.mimo_o = nn.Parameter(torch.ones(self.nheads, self.mimo_rank, self.headdim) / self.mimo_rank)
 
         self.D = nn.Parameter(torch.ones(self.nheads))
 
@@ -171,8 +205,8 @@ class Mamba3SISOBlock(nn.Module):
         split_sizes = [
             self.d_inner,
             self.d_inner,
-            self.d_state,
-            self.d_state,
+            self.d_state * self.num_bc_heads * self.mimo_rank,
+            self.d_state * self.num_bc_heads * self.mimo_rank,
             self.nheads,
             self.nheads,
             self.nheads,
@@ -183,11 +217,18 @@ class Mamba3SISOBlock(nn.Module):
         z = z.view(batch, seqlen, self.nheads, self.headdim)
         v = v.view(batch, seqlen, self.nheads, self.headdim)
 
-        # The shared B/C content is normalized first, then a head-specific bias is added.
-        B = self.B_norm(B_raw).unsqueeze(2).expand(-1, -1, self.nheads, -1)
-        C = self.C_norm(C_raw).unsqueeze(2).expand(-1, -1, self.nheads, -1)
-        B = B + self.B_bias.view(1, 1, self.nheads, self.d_state)
-        C = C + self.C_bias.view(1, 1, self.nheads, self.d_state)
+        B = B_raw.view(batch, seqlen, self.mimo_rank, self.num_bc_heads, self.d_state)
+        C = C_raw.view(batch, seqlen, self.mimo_rank, self.num_bc_heads, self.d_state)
+        B = self.B_norm(B)
+        C = self.C_norm(C)
+
+        heads_per_group = self.nheads // self.num_bc_heads
+        B = B.unsqueeze(4).expand(-1, -1, -1, -1, heads_per_group, -1)
+        C = C.unsqueeze(4).expand(-1, -1, -1, -1, heads_per_group, -1)
+        B = B.reshape(batch, seqlen, self.mimo_rank, self.nheads, self.d_state)
+        C = C.reshape(batch, seqlen, self.mimo_rank, self.nheads, self.d_state)
+        B = B + self.B_bias.permute(1, 0, 2).view(1, 1, self.mimo_rank, self.nheads, self.d_state)
+        C = C + self.C_bias.permute(1, 0, 2).view(1, 1, self.mimo_rank, self.nheads, self.d_state)
 
         # dt and A are token-dependent in Mamba-3. We do the recurrence in fp32 for stability.
         dt = F.softplus(dd_dt.float() + self.dt_bias.view(1, 1, self.nheads))
@@ -195,15 +236,44 @@ class Mamba3SISOBlock(nn.Module):
         A = torch.clamp(A, max=-self.A_floor)
         trap = torch.sigmoid(trap_logits.float())
 
-        # The complex-valued SSM is realized with cumulative pairwise rotations.
+        # The complex-valued SSM is realized with cumulative learned rotations.
         if self.num_rope_angles > 0:
-            phase = angle_logits.float().unsqueeze(2).expand(-1, -1, self.nheads, -1)
+            angle_step = torch.tanh(angle_logits.float()).unsqueeze(2)
+            angle_step = angle_step * dt.unsqueeze(-1) * math.pi
+            phase = angle_step.expand(-1, -1, self.nheads, -1)
             phase = torch.cumsum(phase, dim=1)
-            B = apply_rotary_pairs(B.float(), phase, self.rotate_dim)
-            C = apply_rotary_pairs(C.float(), phase, self.rotate_dim)
+            B = apply_rotary_pairs(
+                B.float(),
+                phase.unsqueeze(2),
+                self.rotate_dim,
+                rotate_pairwise=not self.is_mimo,
+            )
+            C = apply_rotary_pairs(
+                C.float(),
+                phase.unsqueeze(2),
+                self.rotate_dim,
+                rotate_pairwise=not self.is_mimo,
+            )
         else:
             B = B.float()
             C = C.float()
+
+        if self.is_mimo:
+            return self._forward_mimo(v, z, B, C, A, dt, trap)
+
+        return self._forward_siso(v, z, B[:, :, 0], C[:, :, 0], A, dt, trap)
+
+    def _forward_siso(
+        self,
+        v: torch.Tensor,
+        z: torch.Tensor,
+        B: torch.Tensor,
+        C: torch.Tensor,
+        A: torch.Tensor,
+        dt: torch.Tensor,
+        trap: torch.Tensor,
+    ) -> torch.Tensor:
+        batch, seqlen, _, _ = v.shape
 
         # State layout is (batch, head, head_channel, state_dim).
         state = torch.zeros(
@@ -211,11 +281,11 @@ class Mamba3SISOBlock(nn.Module):
             self.nheads,
             self.headdim,
             self.d_state,
-            device=x.device,
+            device=v.device,
             dtype=torch.float32,
         )
-        prev_k = torch.zeros(batch, self.nheads, self.d_state, device=x.device, dtype=torch.float32)
-        prev_v = torch.zeros(batch, self.nheads, self.headdim, device=x.device, dtype=torch.float32)
+        prev_k = torch.zeros(batch, self.nheads, self.d_state, device=v.device, dtype=torch.float32)
+        prev_v = torch.zeros(batch, self.nheads, self.headdim, device=v.device, dtype=torch.float32)
         outputs = []
 
         for t in range(seqlen):
@@ -254,6 +324,81 @@ class Mamba3SISOBlock(nn.Module):
 
         return self.out_proj(y)
 
+    def _forward_mimo(
+        self,
+        v: torch.Tensor,
+        z: torch.Tensor,
+        B: torch.Tensor,
+        C: torch.Tensor,
+        A: torch.Tensor,
+        dt: torch.Tensor,
+        trap: torch.Tensor,
+    ) -> torch.Tensor:
+        batch, seqlen, _, _ = v.shape
+        state = torch.zeros(
+            batch,
+            self.nheads,
+            self.headdim,
+            self.d_state,
+            device=v.device,
+            dtype=torch.float32,
+        )
+        prev_k = torch.zeros(
+            batch,
+            self.mimo_rank,
+            self.nheads,
+            self.d_state,
+            device=v.device,
+            dtype=torch.float32,
+        )
+        prev_v = torch.zeros(batch, self.nheads, self.headdim, device=v.device, dtype=torch.float32)
+
+        x_proj = self.mimo_x.permute(1, 0, 2).float()
+        outputs = []
+
+        for t in range(seqlen):
+            alpha_t = torch.exp(A[:, t] * dt[:, t])
+            beta_t = (1.0 - trap[:, t]) * dt[:, t] * alpha_t
+            gamma_t = trap[:, t] * dt[:, t]
+
+            k_t = B[:, t]
+            q_t = C[:, t]
+            v_t = v[:, t].float()
+
+            prev_v_rank = prev_v.unsqueeze(1) * x_proj.view(1, self.mimo_rank, self.nheads, self.headdim)
+            curr_v_rank = v_t.unsqueeze(1) * x_proj.view(1, self.mimo_rank, self.nheads, self.headdim)
+            prev_outer = torch.einsum("brhp,brhn->bhpn", prev_v_rank, prev_k)
+            curr_outer = torch.einsum("brhp,brhn->bhpn", curr_v_rank, k_t)
+
+            state = (
+                alpha_t.unsqueeze(-1).unsqueeze(-1) * state
+                + beta_t.unsqueeze(-1).unsqueeze(-1) * prev_outer
+                + gamma_t.unsqueeze(-1).unsqueeze(-1) * curr_outer
+            )
+
+            y_t = torch.einsum("bhpn,brhn->brhp", state, q_t)
+            y_t = y_t + self.D.view(1, 1, self.nheads, 1) * curr_v_rank
+            outputs.append(y_t)
+
+            prev_k = k_t
+            prev_v = v_t
+
+        y = torch.stack(outputs, dim=1)
+        z_rank = z.float().unsqueeze(2) * self.mimo_z.permute(1, 0, 2).view(
+            1, 1, self.mimo_rank, self.nheads, self.headdim
+        )
+
+        if self.is_outproj_norm:
+            y = y.reshape(batch, seqlen, self.mimo_rank, self.d_inner)
+            z_rank = z_rank.reshape(batch, seqlen, self.mimo_rank, self.d_inner)
+            y = self.out_norm(y, z_rank).reshape(batch, seqlen, self.mimo_rank, self.nheads, self.headdim)
+        else:
+            y = y * F.silu(z_rank)
+
+        y = torch.einsum("blrhp,hrp->blhp", y, self.mimo_o.float())
+        y = y.reshape(batch, seqlen, self.d_inner).to(v.dtype)
+        return self.out_proj(y)
+
 
 class Mamba3SISOLayer(nn.Module):
     def __init__(self, config: Mamba3Config):
@@ -265,12 +410,15 @@ class Mamba3SISOLayer(nn.Module):
             d_conv=config.d_conv,
             expand=config.expand,
             headdim=config.headdim,
+            ngroups=config.ngroups,
             rope_fraction=config.rope_fraction,
             dt_min=config.dt_min,
             dt_max=config.dt_max,
             dt_init_floor=config.dt_init_floor,
             A_floor=config.A_floor,
             is_outproj_norm=config.is_outproj_norm,
+            is_mimo=False,
+            mimo_rank=1,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -308,19 +456,60 @@ class Mamba3SISOModel(nn.Module):
 
 
 class Mamba3MIMOModel(nn.Module):
-    """
-    Placeholder for the later MIMO version.
-
-    The SISO path above is now real Mamba-3 logic. We leave the MIMO class here
-    so the folder shape stays stable while we build the second variant later.
-    """
-
     def __init__(self, config: Mamba3Config):
         super().__init__()
+        config = copy(config)
+        config.is_mimo = True
+
+        vocab_size = config.vocab_size
+        if config.pad_vocab_size_multiple > 1:
+            remainder = vocab_size % config.pad_vocab_size_multiple
+            if remainder != 0:
+                vocab_size += config.pad_vocab_size_multiple - remainder
+
         self.config = config
+        self.vocab_size = vocab_size
+        self.embedding = nn.Embedding(vocab_size, config.d_model)
+        self.layers = nn.ModuleList([Mamba3MIMOLayer(config) for _ in range(config.n_layers)])
+        self.norm_f = RMSNorm(config.d_model)
+        self.lm_head = nn.Linear(config.d_model, vocab_size, bias=False)
+
+        if config.tie_embeddings:
+            self.lm_head.weight = self.embedding.weight
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Mamba-3 MIMO is not implemented yet. We are only wiring SISO for now.")
+        x = self.embedding(input_ids)
+
+        for layer in self.layers:
+            x = layer(x)
+
+        x = self.norm_f(x)
+        return self.lm_head(x)
+
+
+class Mamba3MIMOLayer(nn.Module):
+    def __init__(self, config: Mamba3Config):
+        super().__init__()
+        self.norm = RMSNorm(config.d_model)
+        self.mamba = Mamba3SISOBlock(
+            d_model=config.d_model,
+            d_state=config.d_state,
+            d_conv=config.d_conv,
+            expand=config.expand,
+            headdim=config.headdim,
+            ngroups=config.ngroups,
+            rope_fraction=config.rope_fraction,
+            dt_min=config.dt_min,
+            dt_max=config.dt_max,
+            dt_init_floor=config.dt_init_floor,
+            A_floor=config.A_floor,
+            is_outproj_norm=config.is_outproj_norm,
+            is_mimo=True,
+            mimo_rank=config.mimo_rank,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x + self.mamba(self.norm(x))
 
 
 Mamba3Model = Mamba3SISOModel
