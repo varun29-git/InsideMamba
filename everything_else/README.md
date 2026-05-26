@@ -4,6 +4,11 @@
 
 My aim with this repository is to systematically learn, explore, and implement all the Mamba architectures, starting from the ground up with **Vanilla Mamba**. 
 
+## Repository Layout
+
+- `model_code/`: model implementations, training/evaluation scripts, and Python requirements.
+- `everything_else/`: repository notes, tokenizer file, logs, checkpoints, plots, and generated samples.
+
 ## Foundational Research Papers
 
 This learning journey is guided by the following foundational papers on Mamba and its variants:
@@ -63,4 +68,3 @@ The plotting script now generates:
 | Vanilla Mamba | 2149 | 10.57 |
 | Mamba-2 | 61288 | 17.67 |
 | Mamba-3 SISO | N/A | N/A |
-
